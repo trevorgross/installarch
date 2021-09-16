@@ -560,7 +560,7 @@ chmod 755 "${INSTALL_DIR}/run.sh"
 # create iso from install script
 info "Creating script install iso"
 cd "${INSTALL_DIR}"
-if [[ $MACOS = 1 ]]; then
+if [[ $MACOS == 1 ]]; then
     hdiutil makehybrid -quiet -iso -joliet -o ia.iso x
 else
     mkisofs -quiet -r -V IA -o ia.iso x
