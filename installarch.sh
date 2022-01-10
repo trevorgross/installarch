@@ -1,5 +1,6 @@
-#!/bin/bash -i
 
+#!/bin/bash -i
+set -e -o pipefail
 ################################################################
 #
 # Install Arch Linux in two clicks.
@@ -25,7 +26,17 @@
 ################################################################
 
 # put the full or relative path to the Arch install ISO here:
-INSTALL_MEDIA="archlinux-2021.06.01-x86_64.iso"
+INSTALL_MEDIA="archlinux-2022.01.01-x86_64.iso"
+
+# size of the virtual disk in GB
+DISK_SIZE=20
+
+# swap size in GB
+SWAP_SIZE=2
+
+# user info
+USERNAME=archuser
+SSH_KEY=""
 
 # name of install dir
 INSTALL_DIR="arch-install"
@@ -81,10 +92,10 @@ function check_macos () {
 }
 
 function check_dl_installed () {
-    if [[ ! -z "$(wget --version 2> /dev/null)" ]]; then
+    if [[ -n "$(wget --version 2> /dev/null)" ]]; then
         success "Found wget."
         DL_CMD="wget --quiet --show-progress -O"
-    elif [[ ! -z "$(curl --version 2> /dev/null)" ]]; then
+    elif [[ -n "$(curl --version 2> /dev/null)" ]]; then
         success "Found curl."
         DL_CMD="curl --progress-bar -Lo"
     else
@@ -163,8 +174,7 @@ function check_create_install_dir () {
         error "Install directory ${norm}\"${blue}${INSTALL_DIR}${norm}\"${red} exists, quitting."
         exit 1
     else
-        mkdir "${INSTALL_DIR}"
-        if [[ $? == 0 ]]; then
+        if mkdir "${INSTALL_DIR}"; then
             success "Directory ${blue}${INSTALL_DIR}${norm} created"
         else
             error "Couldn't create ${blue}${INSTALL_DIR}${red}, failing."
@@ -186,8 +196,7 @@ function ovmf () {
 
     function dl () {
         info "OVMF_${1} not found, fetching..."
-        ${DL_CMD} "${INSTALL_DIR}/OVMF_${1}.fd" "https://github.com/clearlinux/common/raw/master/OVMF_${1}.fd"
-        if [[ $? == 0 ]]; then
+        if ${DL_CMD} "${INSTALL_DIR}/OVMF_${1}.fd" "https://github.com/clearlinux/common/raw/master/OVMF_${1}.fd"; then
             success "OVMF_${1} downloaded."
         else
             error "Couldn't copy or download UEFI file, quitting."
@@ -227,13 +236,25 @@ check_media
 # create folder
 check_create_install_dir
 
+# create install dir for iso creation
+mkdir -p "${INSTALL_DIR}/x"
+
+# put vars files in install dir
+touch "${INSTALL_DIR}/x/vars" "${INSTALL_DIR}/x/install-vars"
+
+# populate swap files
+echo "SWAP=${SWAP_SIZE}" >> "${INSTALL_DIR}/x/vars"
+echo "USERNAME=${USERNAME}" >> "${INSTALL_DIR}/x/install-vars"
+echo "USER_SSH_KEY='${SSH_KEY}'" >> "${INSTALL_DIR}/x/install-vars"
+
 # put install script in install dir
 info "Creating install script in install dir"
 
-mkdir -p "${INSTALL_DIR}/x"
-
 cat <<'INSTALLFILE' > "${INSTALL_DIR}/x/ia.sh"
-#!/bin/sh
+#!/bin/bash
+set -e -u -o pipefail
+
+. vars
 
 export TERM=xterm-256color
 
@@ -253,7 +274,7 @@ timedatectl set-ntp true
 
 info "Formatting: wipefs and gdisk"
 
-wipefs -a ${DISK}
+wipefs -af ${DISK}
 
 (
 echo o      # delete all partitions
@@ -266,13 +287,8 @@ echo ef00   # EFI partition type
 echo n      # new partition
 echo        # default number 2
 echo        # default start sector
-echo +14G   # leave 1.5G swap
-echo        # default type 8300 (Linux)
-echo n      # new partition
-echo        # default number 3
-echo        # default start sector
-echo        # default end sector
-echo 8200   # swap partition type
+echo        # default end sector (entire disk)
+echo 8e00   # LVM type
 echo w      # write the partition table
 echo y      # confirm write
 ) | gdisk ${DISK} > /dev/null
@@ -280,26 +296,40 @@ echo y      # confirm write
 info "partx -u ${DISK}"
 partx -u ${DISK}
 
-info "Format disk"
+# on off chance this is a reinstall
+info "wipefs on individual partitions"
+wipefs -af ${DISK}1
+wipefs -af ${DISK}2
+
+### LVM
+info "LVM: Create physical volume"
+pvcreate ${DISK}2
+
+info "LVM: Create volume group"
+vgcreate vg ${DISK}2
+
+info "LVM: Create logical volumes"
+lvcreate -L "${SWAP}G" vg -n swap
+lvcreate -l 100%FREE vg -n root
+
+info "Format disks"
 mkfs.fat -F32 ${DISK}1 > /dev/null
 # force creation of new filesystem
-mkfs.ext4 -F ${DISK}2 > /dev/null
+mkfs.ext4 -F /dev/vg/root > /dev/null
 
 info "Set up swap"
-mkswap ${DISK}3
-swapon ${DISK}3
+mkswap /dev/vg/swap
+swapon /dev/vg/swap
 
 info "Mount partitions"
-mount ${DISK}2 /mnt
+mount /dev/vg/root /mnt
 mkdir /mnt/efi && mount ${DISK}1 /mnt/efi
 
-info "update package databases?"
+info "update package databases"
 pacman -Syy
 
 info "pacstrap"
-pacstrap /mnt base linux
-
-if [[ $? != 0 ]]; then
+if ! pacstrap /mnt base linux; then
     echo "$(tput setaf 196)Something is wrong. Couldn't install base system."
     echo "Bailing out, try either running the script again"
     echo "or manually completing install.$(tput sgr0)"
@@ -309,10 +339,14 @@ fi
 info "Generate fstab"
 genfstab -U /mnt >> /mnt/etc/fstab
 
-info "Copy other install file to new root"
+info "Copy other install files to new root"
+cp install-vars /mnt
 
 cat <<'EOF' > /mnt/moreinst.sh
-#!/bin/sh
+#!/bin/bash
+set -e -u -o pipefail
+
+. install-vars
 
 export TERM=xterm-256color
 
@@ -344,11 +378,9 @@ echo "${HOSTNAME}" > /etc/hostname
 info "Full-system update, can avoid problems w/Grub"
 pacman --noconfirm -Syu
 
-info "Make init cpio"
-mkinitcpio -P > /dev/null
-
-info "Install boot packages: grub efibootmgr"
-pacman --noconfirm -S grub efibootmgr > /dev/null
+PROGS="dhcpcd efibootmgr ethtool gdisk grub htop inetutils linux-headers lvm2 nfs-utils nmap openssh sudo tcpdump usbutils vim wget zsh"
+info "Install some programs: ${PROGS}"
+pacman --noconfirm -S ${PROGS}
 
 info "Disable auditing: audit=0"
 sed -i 's/GRUB_CMDLINE_LINUX=""/GRUB_CMDLINE_LINUX="audit=0"/' /etc/default/grub
@@ -357,9 +389,11 @@ info "Install grub: grub-install && grub-mkconfig"
 grub-install --target=x86_64-efi --efi-directory=/efi --bootloader-id=GRUB > /dev/null
 grub-mkconfig -o /boot/grub/grub.cfg > /dev/null
 
-PROGS="dhcpcd ethtool gdisk htop inetutils linux-headers nfs-utils nmap openssh sudo tcpdump usbutils vim wget zsh"
-info "Install some programs: ${PROGS}"
-pacman --noconfirm -S ${PROGS}
+info "Add LVM hook to mkinitcpio.conf"
+sed -i '/^HOOKS=/ s/block file/block lvm2 file/' /etc/mkinitcpio.conf
+
+info "Make init cpio"
+mkinitcpio -P > /dev/null
 
 info "Aliases"
 cat <<EOFF > /etc/profile.d/nice-aliases.sh
@@ -390,16 +424,16 @@ echo "\4" >> /etc/issue
 echo >> /etc/issue
 
 info "Add a user, set them up w/ssh key and zsh"
-useradd -m -s /bin/zsh -G wheel archuser
+useradd -m -s /bin/zsh -G wheel "${USERNAME}"
 (
 echo asdf
 echo asdf
-) | passwd archuser > /dev/null
+) | passwd "${USERNAME}" > /dev/null
 
-mkdir /home/archuser/.ssh
-echo "ssh-ed25519 YOUR_SSH_KEY_HERE_OR_YOU_WONT_BE_ABLE_TO_LOG_IN you@host" > /home/archuser/.ssh/authorized_keys
+mkdir /home/"${USERNAME}"/.ssh
+echo "${USER_SSH_KEY}" > /home/"${USERNAME}"/.ssh/authorized_keys
 
-cat <<'ENDZSH' > /home/archuser/.zshrc
+cat <<'ENDZSH' > /home/"${USERNAME}"/.zshrc
 # https://wiki.archlinux.org/index.php/SSH_keys#SSH_agents
 if ! pgrep -u "$USER" ssh-agent > /dev/null; then
     ssh-agent > ~/.ssh-agent-running
@@ -442,7 +476,7 @@ alias dmesg="dmesg -T"
 alias history='history -i 1'
 ENDZSH
 
-chown -R archuser:archuser /home/archuser
+chown -R "${USERNAME}":"${USERNAME}" /home/"${USERNAME}"
 
 sed -i '/NOPASSWD/s/^#.//g' /etc/sudoers
 
@@ -455,6 +489,7 @@ echo root
 info "Remove this script and exit chroot"
 
 rm moreinst.sh
+rm install-vars
 
 exit
 
@@ -489,7 +524,7 @@ while [[ $I -gt 0 ]]; do
     sleep 0.3
     ((I--))
 done
-echo "$(tput sgr0)"
+tput sgr0
 
 shutdown -h now
 
@@ -539,7 +574,7 @@ run_machine
 RUNFILE
 
 function edit_runfile () {
-    if [[ ! -z $VNC ]]; then
+    if [[ -n $VNC ]]; then
         # no "sed -i" on macos...
         if [[ $MACOS == 1 ]]; then
             sed 's/VNC=""/VNC="-vnc :1"/' "${INSTALL_DIR}/run.sh" > "${INSTALL_DIR}/tmp_run.sh" && mv "${INSTALL_DIR}/tmp_run.sh" "${INSTALL_DIR}/run.sh"
@@ -560,7 +595,7 @@ chmod 755 "${INSTALL_DIR}/run.sh"
 # create iso from install script
 info "Creating script install iso"
 cd "${INSTALL_DIR}"
-if [[ $MACOS == 1 ]]; then
+if [[ $MACOS = 1 ]]; then
     hdiutil makehybrid -quiet -iso -joliet -o ia.iso x
 else
     mkisofs -quiet -r -V IA -o ia.iso x
@@ -568,8 +603,8 @@ fi
 cd - > /dev/null
 
 # create virtual hard drive
-info "Creating virtual hard drive (16GB)"
-qemu-img create -f raw "${INSTALL_DIR}/arch.img" 16G > /dev/null
+info "Creating virtual hard drive (${DISK_SIZE}GB)"
+qemu-img create -f raw "${INSTALL_DIR}/arch.img" ${DISK_SIZE}G > /dev/null
 
 # set up ovmf (UEFI files)
 ovmf
@@ -685,7 +720,7 @@ function send_keys () {
                     # move pointer past entire thing
                     # capture len + 2 brackets - 1 for zero indexing
                     new_idx=$(( ${#BASH_REMATCH[1]}+1 ))
-                    i=$(( $i+$new_idx ))
+                    i=$((i+new_idx))
                 fi
             else
                 echo "sendkey ${KEYS[${str:${i}:1}]:-${str:${i}:1}}"
@@ -700,17 +735,16 @@ function send_keys () {
 warn "Wait for the \"${red}root${norm}@archiso ${white}~${norm} #${orange}\" prompt."
 sleep 5
 warn "Press enter in THIS terminal window when you see that prompt."
-read -s input
+read -sr input
 if [[ $input == "" ]]; then
-    str='mkdir x && mount -o ro /dev/sr1 x && cp x/ia.sh . && chmod 755 ia.sh && ./ia.sh<ret>'
+    str='mkdir x && mount -o ro /dev/sr1 x && cp x/ia.sh x/vars x/install-vars . && chmod 755 ia.sh && ./ia.sh<ret>'
     send_keys
 fi
 
 info "Waiting for install to complete."
 
 function wait_for_end () {
-    echo "info block" | nc ${NC_CMD} localhost 6661 > /dev/null 2>&1
-    if [[ $? == 0 ]]; then
+    if $(echo "info block" | nc ${NC_CMD} localhost 6661 > /dev/null 2>&1); then
         sleep 1
         wait_for_end
     else
@@ -725,6 +759,8 @@ info "Removing temp files"
 [[ -f "${INSTALL_DIR}/tmp_run.sh" ]] && rm "${INSTALL_DIR}/tmp_run.sh"
 [[ -f "${INSTALL_DIR}/ia.iso" ]] && rm "${INSTALL_DIR}/ia.iso"
 [[ -f "${INSTALL_DIR}/x/ia.sh" ]] && rm "${INSTALL_DIR}/x/ia.sh"
+[[ -f "${INSTALL_DIR}/x/vars" ]] && rm "${INSTALL_DIR}/x/vars"
+[[ -f "${INSTALL_DIR}/x/install-vars" ]] && rm "${INSTALL_DIR}/x/install-vars"
 [[ -d "${INSTALL_DIR}/x" ]] && rmdir "${INSTALL_DIR}/x"
 
 info "To run your new machine, do \"cd ${blue}${INSTALL_DIR}${norm}\", \"./${green}run.sh${norm}\"."
