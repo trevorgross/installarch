@@ -457,6 +457,7 @@ export HISTTIMEFORMAT="%a %b %d %R "
 export PROMPT='%B%F{47}%n%f%b@%B%F{208}%m%f%b %B%F{199}%~%f%b %# '
 export RPROMPT='%B%F{69}%D{%H:%M:%S}%f%b'
 export SAVEHIST=10000
+export TERM=xterm-256color
 export VISUAL='vim'
 
 setopt INC_APPEND_HISTORY
