@@ -408,7 +408,7 @@ EOFF
 info "Link vim to vi"
 ln -s /usr/bin/vim /usr/bin/vi
 
-info "Using dhcpcd for simplicity, systemd-networkd was not reliable"
+info "Using dhcpcd for simplicity"
 systemctl enable dhcpcd
 
 info "SSH: disallow root login, disallow keyboard interactive auth"
