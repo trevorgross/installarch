@@ -429,8 +429,10 @@ echo asdf
 echo asdf
 ) | passwd "${USERNAME}" > /dev/null
 
-mkdir /home/"${USERNAME}"/.ssh
+mkdir -p /home/"${USERNAME}"/.ssh
+chmod 700 /home/"$USERNAME"/.ssh
 echo "${USER_SSH_KEY}" > /home/"${USERNAME}"/.ssh/authorized_keys
+chmod 600 /home/"$USERNAME"/.ssh/authorized_keys
 
 cat <<'ENDZSH' > /home/"${USERNAME}"/.zshrc
 # https://wiki.archlinux.org/index.php/SSH_keys#SSH_agents
@@ -624,7 +626,7 @@ function run_machine () {
     fi
 
     qemu-system-x86_64 \
-        -name arch \
+        -name arch-installer \
         -nodefaults \
         -monitor telnet:localhost:6661,server,nowait \
         -machine type=q35,accel=${ACCEL} \
