@@ -5,14 +5,12 @@ set -e -o pipefail
 # Install Arch Linux in two clicks.
 # You provide:
 #   - working qemu install
-#   - 16+GB disk space
+#   - adequate disk space
 #   - Arch install ISO
 #   - OVMF (optional, script downloads if not found)
 #   - nc
 #   - mkisofs (hditool on mac)
 #   - curl or wget
-#
-# MacOS has its own requirements that this script tries to handle.
 #
 # You MUST paste in your ssh public key for installation on the 
 # created machine, or you won't be able to log in to it thru ssh.
