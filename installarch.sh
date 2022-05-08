@@ -23,7 +23,7 @@ set -e -o pipefail
 ################################################################
 
 # put the full or relative path to the Arch install ISO here:
-INSTALL_MEDIA="archlinux-2022.01.01-x86_64.iso"
+INSTALL_MEDIA="archlinux-2022.05.01-x86_64.iso"
 
 # size of the virtual disk in GB
 DISK_SIZE=20
@@ -504,8 +504,11 @@ echo -e "$(tput setaf 11)Entering chroot...$(tput sgr0)"
 arch-chroot /mnt ./moreinst.sh
 
 echo -e "$(tput setaf 11)Chroot done, shutting down.$(tput sgr0)"
+
 sleep 2
-umount x
+
+umount /mnt/efi
+mount /mnt
 
 I=10
 
