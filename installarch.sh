@@ -507,6 +507,7 @@ echo -e "$(tput setaf 11)Chroot done, shutting down.$(tput sgr0)"
 
 sleep 2
 
+umount /root/x
 umount /mnt/efi
 umount /mnt
 
