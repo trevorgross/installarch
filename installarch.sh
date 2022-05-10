@@ -69,7 +69,7 @@ error () {
 VNC=""
 
 if [[ $1 == '-vnc' ]]; then
-    warn "Running headless. VNC server on localhost:1"
+    warn "Running headless. VNC server on :1"
     VNC="-vnc :1"
 fi
 
