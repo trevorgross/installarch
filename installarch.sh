@@ -34,7 +34,7 @@ INSTALL_DIR="arch-install"
 DISK_SIZE=20
 
 # swap size in GB
-SWAP_SIZE=2
+SWAP_SIZE=0.5
 
 # user info
 USERNAME=archuser
