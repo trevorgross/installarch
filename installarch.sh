@@ -22,8 +22,13 @@ set -e -o pipefail
 #
 ################################################################
 
+# Change things in this section
+
 # put the full or relative path to the Arch install ISO here:
 INSTALL_MEDIA="archlinux-2022.05.01-x86_64.iso"
+
+# name of install dir
+INSTALL_DIR="arch-install"
 
 # size of the virtual disk in GB
 DISK_SIZE=20
@@ -35,11 +40,12 @@ SWAP_SIZE=2
 USERNAME=archuser
 SSH_KEY=""
 
-# name of install dir
-INSTALL_DIR="arch-install"
-
 # Where are UEFI files? This is the default on Arch
 OVMF_DIR="/usr/share/OVMF/x64"
+
+# Nothing below here should need to be changed
+
+################################################################
 
 # https://upload.wikimedia.org/wikipedia/commons/1/15/Xterm_256color_chart.svg
 red=$(tput setaf 196)
@@ -120,19 +126,24 @@ function check_nc_installed () {
     # Assumptions must be made WRT MacOS, this tries to catch
     # other common scenarios
 
+    # "nc -h 2> /dev/null"
+    # openbsd netcat:   no output
+    # gnu netcat:       prints help to console
+
+    # "nc -h > /dev/null"
+    # openbsd netcat:   prints help to console
+    # gnu netcat:       no output
+
+    # "nc -h 2>&1 /dev/null"
+    # openbsd netcat:   prints help to console
+    # gnu netcat:       prints help to console
+
     NC_CMD=''
 
-    if [[ -z $(nc -h 2> /dev/null) ]]; then
-        nc -h 2> /tmp/nc-tmpfile
-        re='^OpenBSD'
-        if [[ "$(head -n 1 /tmp/nc-tmpfile)" =~ ${re} ]]; then
-            success "Found nc (OpenBSD)."
-            [[ -f /tmp/nc-tmpfile ]] && rm /tmp/nc-tmpfile
-        else 
-            error "Couldn't find ${green}nc${red}."
-            warn "Install the \"${norm}gnu-netcat${orange}\" package."
-            exit 1
-        fi
+    if ! hash nc 2> /dev/null; then
+        error "Couldn't find ${green}nc${red}."
+        warn "Install the \"${norm}gnu-netcat${orange}\" or \"${norm}openbsd-netcat${orange}\" package."
+        exit 1
     else
         success "Found nc."
         re='^GNU'
