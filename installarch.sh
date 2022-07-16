@@ -78,8 +78,8 @@ function error () {
 VNC=""
 
 if [[ $1 == '-vnc' ]]; then
-    warn "Running headless. VNC server on :1"
-    VNC="-vnc :1"
+    warn "Running headless. VNC server on localhost:1"
+    VNC="-vnc localhost:1"
 fi
 
 MACOS=0
@@ -644,11 +644,7 @@ RUNFILE
 function edit_runfile () {
     if [[ -n $VNC ]]; then
         # no "sed -i" on macos...
-        if [[ $MACOS == 1 ]]; then
-            sed 's/VNC=""/VNC="-vnc :1"/' "${INSTALL_DIR}/run.sh" > "${INSTALL_DIR}/tmp_run.sh" && mv "${INSTALL_DIR}/tmp_run.sh" "${INSTALL_DIR}/run.sh"
-        else
-            sed -i 's/VNC=""/VNC="-vnc :1"/' "${INSTALL_DIR}/run.sh"
-        fi
+        sed 's/VNC=""/VNC="-vnc localhost:1"/' "${INSTALL_DIR}/run.sh" > "${INSTALL_DIR}/tmp_run.sh" && mv "${INSTALL_DIR}/tmp_run.sh" "${INSTALL_DIR}/run.sh"
     fi
 
     if [[ $MACOS == 1 ]]; then
