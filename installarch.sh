@@ -155,7 +155,7 @@ function check_nc_installed () {
 function check_qemu_installed () {
     if [[ -n $(/usr/libexec/qemu-kvm --version 2> /dev/null) ]]; then
         QEMU=/usr/libexec/qemu-kvm
-        success "Found qemu in libexec..."
+        success "Found qemu in /usr/libexec."
     elif [[ -n $(qemu-system-x86_64 --version 2> /dev/null) ]]; then
         QEMU=qemu-system-x86_64
         success "Found qemu-system-x86_64."
