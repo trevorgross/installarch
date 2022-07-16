@@ -250,7 +250,7 @@ function check_media () {
             get_media
         else
             error "No install ISO available, quitting."
-            info "You may download an ISO from https://archlinux.org/download/"
+            info "You may download an ISO from ${white}https://archlinux.org/download/${norm}"
             info "and set the ${white}\$INSTALL_MEDIA${norm} variable to point to your ISO."
             exit 1
         fi
