@@ -2,19 +2,20 @@
 set -e -o pipefail
 ################################################################
 #
-# Install Arch Linux in two clicks.
+# Create an Arch Linux qemu VM in two clicks.
+#
+# Works on Linux and Mac (with homebrew)
+#
 # You provide:
-#   - working qemu install
-#   - adequate disk space
-#   - Arch install ISO
-#   - OVMF (optional, script downloads if not found)
+#   - qemu with KVM
+#   - curl or wget
 #   - nc
 #   - mkisofs (hditool on mac)
-#   - curl or wget
+#   - Arch install ISO (script can download this if not found)
+#   - OVMF (optional, script downloads if not found)
 #
-# You MUST paste in your ssh public key for installation on the 
-# created machine, or you won't be able to log in to it thru ssh.
-#
+# Set your options below.
+# Add an SSH public key to allow passwordless login to your VM.
 # Run this script, ./installarch.sh [-vnc]
 #    -vnc option runs headless and installs a headless run script
 # Press "enter" once at the specified time.
@@ -24,7 +25,8 @@ set -e -o pipefail
 
 # Change things in this section
 
-# put the full or relative path to the Arch install ISO here:
+# put the full or relative path to the Arch install ISO here
+# the script can attempt to download one if not found
 INSTALL_MEDIA="archlinux-2022.05.01-x86_64.iso"
 
 # name of install dir
@@ -37,10 +39,11 @@ DISK_SIZE=20
 SWAP_SIZE=0.5
 
 # user info
-USERNAME=archuser
+USERNAME="archuser"
 SSH_KEY=""
 
-# Where are UEFI files? This is the default on Arch
+# If you have OVMF files locally
+# This is the default location on Arch
 OVMF_DIR="/usr/share/OVMF/x64"
 
 # Nothing below here should need to be changed
@@ -56,19 +59,19 @@ blue=$(tput setaf 75)
 white=$(tput setaf 15)
 norm=$(tput sgr0)
 
-success () {
+function success () {
     echo -e " ${green}✔${norm} ${1}"
 }
 
-info () {
+function info () {
     echo -e " ${blue}ℹ${norm} ${1}"
 }
 
-warn () {
+function warn () {
     echo -e " ${orange}🠪 ${1}${norm}"
 }
 
-error () {
+function error () {
     echo -e " ${red}! ${1}${norm}"
 }
 
@@ -111,7 +114,7 @@ function check_dl_installed () {
 function check_mkisofs_installed () {
     if [[ -z $(mkisofs --version 2> /dev/null) ]]; then
         error "Couldn't find ${green}mkisofs${red}."
-        warn "Install the \"${norm}cdrtools${orange}\" package."
+        warn "Install the \"${norm}cdrtools${orange}\" package (on Arch), or \"${norm}genisoimage${orange}\"."
         exit 1
     else
         success "Found mkisofs."
@@ -120,19 +123,13 @@ function check_mkisofs_installed () {
 
 function check_nc_installed () {
 
-    # There are many different versions of nc and they're a disaster.
-    # No consistent options existence or handling, no consistency
-    # with what gets sent to stdout and stderr.
-    # Assumptions must be made WRT MacOS, this tries to catch
-    # other common scenarios
+    # "nc -h > /dev/null"
+    # openbsd netcat:   prints help to console
+    # gnu netcat:       no output
 
     # "nc -h 2> /dev/null"
     # openbsd netcat:   no output
     # gnu netcat:       prints help to console
-
-    # "nc -h > /dev/null"
-    # openbsd netcat:   prints help to console
-    # gnu netcat:       no output
 
     # "nc -h 2>&1 /dev/null"
     # openbsd netcat:   prints help to console
@@ -155,12 +152,16 @@ function check_nc_installed () {
 }
 
 function check_qemu_installed () {
-    if [[ -z $(qemu-system-x86_64 --version 2> /dev/null) ]]; then
-        error "Couldn't find ${green}qemu-system-x86_64${red}."
-        warn "Install the \"${norm}qemu${orange}\" package."
-        exit 1
-    else
+    if [[ -n $(/usr/libexec/qemu-kvm --version 2> /dev/null) ]]; then
+        QEMU=/usr/libexec/qemu-kvm
+        success "Found qemu in libexec..."
+    elif [[ -n $(qemu-system-x86_64 --version 2> /dev/null) ]]; then
+        QEMU=qemu-system-x86_64
         success "Found qemu-system-x86_64."
+    else
+        error "Couldn't find ${green}qemu-system-x86_64${red} or ${green}/usr/libexec/qemu-kvm${red}."
+        warn "Install a qemu package (\"${norm}qemu-desktop${orange}\" or \"${norm}qemu-full${orange}\")"
+        exit 1
     fi
 }
 
@@ -191,12 +192,62 @@ function check_create_install_dir () {
     fi
 }
 
+function get_media () {
+
+    LINKS=(
+        "https://mirror.arizona.edu/archlinux/iso/latest/"
+        "http://arch.mirror.constant.com/iso/latest/"
+        "http://mirror.math.princeton.edu/pub/archlinux/iso/latest/"
+        "http://mirrors.lug.mtu.edu/archlinux/iso/latest/"
+        "http://mirror.mia11.us.leaseweb.net/archlinux/iso/latest/"
+    )
+
+    NUMLINKS=${#LINKS[@]}
+    SERVER="${LINKS[$((RANDOM % NUMLINKS))]}"
+
+    info "trying server: ${white}$SERVER${norm}"
+
+    if [[ $(echo $DL_CMD | cut -b -4) == 'wget' ]]; then
+        ISO=$(wget --quiet -O - "${SERVER}md5sums.txt" | head -n 1)
+    else
+        ISO=$(curl --silent "${SERVER}md5sums.txt" | head -n 1)
+    fi
+
+    DISC=$(echo $ISO | cut -b 34-)
+    SUM=$(echo $ISO | cut -b -32)
+
+    info "Latest iso is ${white}$DISC${norm}, fetching..."
+
+    $DL_CMD "$DISC" "${SERVER}${DISC}"
+
+    info "Checking md5sums..."
+
+    COMPUTEDSUM=$(md5sum "$DISC" | cut -b -32)
+
+    if [[ $COMPUTEDSUM != $SUM ]]; then
+        error "Checksum failed."
+        info "Try downloading an ISO from ${norm}https://archlinux.org/download/${orange}."
+        exit 1
+    else
+        success "Checksum OK, proceeding."
+    fi
+
+    INSTALL_MEDIA="$DISC"
+}
+
 function check_media () {
     if [[ ! -f "${INSTALL_MEDIA}" ]]; then
-        error "No install media found."
-        warn "Correct the ${norm}\$INSTALL_MEDIA${orange} variable to point to your ISO, or..."
-        warn "visit ${norm}https://archlinux.org/download/${orange} and download an ISO."
-        exit 1
+        error "Install media ${white}$INSTALL_MEDIA${red} not found."
+        warn "Correct the ${norm}\$INSTALL_MEDIA${orange} variable to point to your ISO."
+        info "Alternately, this script can try to download the latest ISO for you."
+        info "Press \"y\" to try it."
+        read -s -r -n 1 ans
+        if [[ $ans == 'y' ]]; then
+            get_media
+        else
+            error "No install ISO available, quitting."
+            exit 1
+        fi
     fi
 }
 
@@ -420,10 +471,6 @@ ln -s /usr/bin/vim /usr/bin/vi
 info "Using dhcpcd for simplicity"
 systemctl enable dhcpcd
 
-info "SSH: disallow root login, disallow keyboard interactive auth"
-sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin no/' /etc/ssh/sshd_config
-sed -i 's/#PasswordAuthentication yes/PasswordAuthentication no/' /etc/ssh/sshd_config
-
 info "Enable sshd"
 systemctl enable sshd
 
@@ -601,6 +648,9 @@ function edit_runfile () {
     if [[ $MACOS == 1 ]]; then
         sed 's/ACCEL="kvm"/ACCEL="hvf"/' "${INSTALL_DIR}/run.sh" > "${INSTALL_DIR}/tmp_run.sh" && mv "${INSTALL_DIR}/tmp_run.sh" "${INSTALL_DIR}/run.sh"
     fi
+
+    # in case it's libexec CentOS/Fedora version...
+    sed "s#qemu-system-x86_64#$QEMU#" "${INSTALL_DIR}/run.sh" > "${INSTALL_DIR}/tmp_run.sh" && mv "${INSTALL_DIR}/tmp_run.sh" "${INSTALL_DIR}/run.sh"
 }
 
 edit_runfile 
@@ -638,7 +688,7 @@ function run_machine () {
         ACCEL='hvf'
     fi
 
-    qemu-system-x86_64 \
+    "$QEMU" \
         -name arch-installer \
         -nodefaults \
         -monitor telnet:localhost:6661,server,nowait \
