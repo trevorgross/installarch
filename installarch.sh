@@ -216,9 +216,14 @@ function get_media () {
     DISC=$(echo $ISO | cut -b 34-)
     SUM=$(echo $ISO | cut -b -32)
 
-    info "Latest iso is ${white}$DISC${norm}, fetching..."
+    info "Latest ISO is ${white}$DISC${norm}."
 
-    $DL_CMD "$DISC" "${SERVER}${DISC}"
+    if [[ ! -f $DISC ]]; then
+        info "Fetching ISO..."
+        $DL_CMD "$DISC" "${SERVER}${DISC}"
+    else
+        info "Latest ISO found in current directory, using it."
+    fi
 
     info "Checking md5sums..."
 
