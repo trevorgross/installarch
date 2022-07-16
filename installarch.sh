@@ -243,14 +243,15 @@ function get_media () {
 function check_media () {
     if [[ ! -f "${INSTALL_MEDIA}" ]]; then
         error "Install media ${white}$INSTALL_MEDIA${red} not found."
-        warn "Correct the ${norm}\$INSTALL_MEDIA${orange} variable to point to your ISO."
-        info "Alternately, this script can try to download the latest ISO for you."
-        info "Press \"y\" to try it."
+        info "Would you like this script to try to download the latest ISO for you?"
+        info "Press \"y\" to try downloading it."
         read -s -r -n 1 ans
         if [[ $ans == 'y' ]]; then
             get_media
         else
             error "No install ISO available, quitting."
+            info "You may download an ISO from https://archlinux.org/download/"
+            info "and set the ${white}\$INSTALL_MEDIA${norm} variable to point to your ISO."
             exit 1
         fi
     fi
