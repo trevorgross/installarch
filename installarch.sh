@@ -7,12 +7,13 @@ set -e -o pipefail
 # Works on Linux and Mac (with homebrew)
 #
 # You provide:
-#   - qemu with KVM
-#   - curl or wget
-#   - nc
-#   - mkisofs (hditool on mac)
 #   - Arch install ISO (script can download this if not found)
+#   - curl or wget
+#   - md5sum
+#   - mkisofs (hditool on mac)
+#   - nc
 #   - OVMF (optional, script downloads if not found)
+#   - qemu with KVM (hvf on macOS, untested)
 #
 # Set your options below.
 # Add an SSH public key to allow passwordless login to your VM.
@@ -75,14 +76,14 @@ function error () {
     echo -e " ${red}! ${1}${norm}"
 }
 
+MACOS=0
+MISSING_PROGRAMS=0
 VNC=""
 
-if [[ $1 == '-vnc' ]]; then
+if [[ "$1" == '-vnc' ]]; then
     warn "Running headless. VNC server on localhost:1"
     VNC="-vnc localhost:1"
 fi
-
-MACOS=0
 
 function check_macos () {
     # also sw_vers, is that better?
@@ -107,15 +108,15 @@ function check_dl_installed () {
     else
         error "Couldn't find ${green}curl${red} or ${green}wget${red}."
         warn "Install one of them."
-        exit 1
+        MISSING_PROGRAMS=1
     fi
 }
 
 function check_mkisofs_installed () {
     if [[ -z $(mkisofs --version 2> /dev/null) ]]; then
         error "Couldn't find ${green}mkisofs${red}."
-        warn "Install the \"${norm}cdrtools${orange}\" package (on Arch), or \"${norm}genisoimage${orange}\"."
-        exit 1
+        warn "Install \"${norm}cdrtools${orange}\", or something like \"${norm}genisoimage, cdrkit, xorriso${orange}\"."
+        MISSING_PROGRAMS=1
     else
         success "Found mkisofs."
     fi
@@ -140,7 +141,7 @@ function check_nc_installed () {
     if ! hash nc 2> /dev/null; then
         error "Couldn't find ${green}nc${red}."
         warn "Install the \"${norm}gnu-netcat${orange}\" or \"${norm}openbsd-netcat${orange}\" package."
-        exit 1
+        MISSING_PROGRAMS=1
     else
         success "Found nc."
         re='^GNU'
@@ -161,11 +162,12 @@ function check_qemu_installed () {
     else
         error "Couldn't find ${green}qemu-system-x86_64${red} or ${green}/usr/libexec/qemu-kvm${red}."
         warn "Install a qemu package (\"${norm}qemu-desktop${orange}\" or \"${norm}qemu-full${orange}\")"
-        exit 1
+        MISSING_PROGRAMS=1
     fi
 }
 
 function run_prog_checks () {
+    info "Checking for program dependencies..."
     check_dl_installed
     if [[ $MACOS == 0 ]]; then
         check_mkisofs_installed
@@ -175,6 +177,10 @@ function run_prog_checks () {
         info "On MacOS, assuming netcat exists"
     fi
     check_qemu_installed
+    if [[ $MISSING_PROGRAMS == 1 ]]; then
+        error "Required programs are missing, see above. Quitting."
+        exit 1;
+    fi
 }
 
 function check_create_install_dir () {
