@@ -9,11 +9,11 @@ set -e -o pipefail
 # You provide:
 #   - Arch install ISO (script can download this if not found)
 #   - curl or wget
-#   - md5sum
+#   - md5sum (if the script downloads the install ISO)
 #   - mkisofs (hditool on mac)
 #   - nc
 #   - OVMF (optional, script downloads if not found)
-#   - qemu with KVM (hvf on macOS, untested)
+#   - qemu, KVM very highly recommended (hvf on macOS, untested)
 #
 # Set your options below.
 # Add an SSH public key to allow passwordless login to your VM.
@@ -72,6 +72,10 @@ function warn () {
     echo -e " ${orange}🠪 ${1}${norm}"
 }
 
+function danger () {
+    echo -e " ${yellow}⚠ ${1}${norm}"
+}
+
 function error () {
     echo -e " ${red}! ${1}${norm}"
 }
@@ -79,6 +83,8 @@ function error () {
 KVM=1
 MACOS=0
 MISSING_PROGRAMS=0
+NC_CMD_ARG=''
+NC_TMPFILE=/tmp/nc-tmp
 VNC=""
 
 if [[ "$1" == '-vnc' ]]; then
@@ -115,9 +121,9 @@ function check_dl_installed () {
 
 function check_kvm () {
     if [[ ! -c /dev/kvm ]]; then
-        warn "KVM device not found."
-        warn "qemu will probably be unusably slow."
-        warn "You should configure KVM and try again."
+        danger "KVM device not found."
+        danger "qemu will probably be unusably slow."
+        danger "You should configure KVM and try again."
         KVM=0
     fi
 }
@@ -134,31 +140,30 @@ function check_mkisofs_installed () {
 
 function check_nc_installed () {
 
-    # "nc -h > /dev/null"
-    # openbsd netcat:   prints help to console
-    # gnu netcat:       no output
+    RE_BSD='^OpenBSD'
+    RE_GNU='^GNU'
 
-    # "nc -h 2> /dev/null"
-    # openbsd netcat:   no output
-    # gnu netcat:       prints help to console
+    # use hash because different nc versions have different stderr
+    if hash nc 2> /dev/null; then
+        success "Found nc."
 
-    # "nc -h 2>&1 /dev/null"
-    # openbsd netcat:   prints help to console
-    # gnu netcat:       prints help to console
+        nc -h &> "$NC_TMPFILE"
 
-    NC_CMD_ARG=''
+        if [[ "$(head -n 1 $NC_TMPFILE)" =~ ${RE_BSD} ]]; then
+            info "Applying args for OpenBSD netcat."
+            NC_CMD_ARG="-q 0"
+        fi
 
-    if ! hash nc 2> /dev/null; then
+        if [[ "$(head -n 1 $NC_TMPFILE)" =~ ${RE_GNU} ]]; then
+            info "Applying args for GNU netcat."
+            NC_CMD_ARG="-c"
+        fi
+
+        [[ -f "$NC_TMPFILE" ]] && rm "$NC_TMPFILE"
+    else
         error "Couldn't find ${green}nc${red}."
         warn "Install the \"${norm}gnu-netcat${orange}\" or \"${norm}openbsd-netcat${orange}\" package."
         MISSING_PROGRAMS=1
-    else
-        success "Found nc."
-        re='^GNU'
-        if [[ "$(nc -h 2> /dev/null | head -n 1)" =~ ${re} ]]; then
-            info "Applying GNU workaround for nc"
-            NC_CMD_ARG="-c"
-        fi
     fi
 }
 
@@ -186,6 +191,7 @@ function run_prog_checks () {
     else
         info "On macOS, skipping KVM check"
         info "On macOS, assuming hdiutil exists"
+        # BSD netcat? What, if any, arguments does it need?
         info "On macOS, assuming netcat exists"
     fi
     check_qemu_installed
@@ -225,14 +231,14 @@ function get_media () {
 
     info "trying server: ${white}$SERVER${norm}"
 
-    if [[ $(echo $DL_CMD | cut -b -4) == 'wget' ]]; then
+    if [[ $(echo "$DL_CMD" | cut -b -4) == 'wget' ]]; then
         ISO=$(wget --quiet -O - "${SERVER}md5sums.txt" | head -n 1)
     else
         ISO=$(curl --silent "${SERVER}md5sums.txt" | head -n 1)
     fi
 
-    DISC=$(echo $ISO | cut -b 34-)
-    SUM=$(echo $ISO | cut -b -32)
+    DISC=$(echo "$ISO" | cut -b 34-)
+    SUM=$(echo "$ISO" | cut -b -32)
 
     info "Latest ISO is ${white}$DISC${norm}."
 
@@ -247,7 +253,7 @@ function get_media () {
 
     COMPUTEDSUM=$(md5sum "$DISC" | cut -b -32)
 
-    if [[ $COMPUTEDSUM != $SUM ]]; then
+    if [[ $COMPUTEDSUM != "$SUM" ]]; then
         error "Checksum failed."
         info "Try downloading an ISO from ${norm}https://archlinux.org/download/${orange}."
         exit 1
@@ -848,7 +854,7 @@ function wait_for_end () {
 wait_for_end
 
 info "Removing temp files"
-[[ -f /tmp/nc-tmpfile ]] && rm /tmp/nc-tmpfile
+[[ -f "$NC_TMPFILE" ]] && rm $NC_TMPFILE
 [[ -f "${INSTALL_DIR}/tmp_run.sh" ]] && rm "${INSTALL_DIR}/tmp_run.sh"
 [[ -f "${INSTALL_DIR}/ia.iso" ]] && rm "${INSTALL_DIR}/ia.iso"
 [[ -f "${INSTALL_DIR}/x/ia.sh" ]] && rm "${INSTALL_DIR}/x/ia.sh"
