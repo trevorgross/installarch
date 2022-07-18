@@ -28,7 +28,7 @@ set -e -o pipefail
 
 # put the full or relative path to the Arch install ISO here
 # the script can attempt to download one if not found
-INSTALL_MEDIA="archlinux-2022.05.01-x86_64.iso"
+INSTALL_MEDIA="archlinux-2022.07.01-x86_64.iso"
 
 # name of install dir
 INSTALL_DIR="arch-install"
@@ -76,6 +76,7 @@ function error () {
     echo -e " ${red}! ${1}${norm}"
 }
 
+KVM=1
 MACOS=0
 MISSING_PROGRAMS=0
 VNC=""
@@ -112,6 +113,15 @@ function check_dl_installed () {
     fi
 }
 
+function check_kvm () {
+    if [[ ! -c /dev/kvm ]]; then
+        warn "KVM device not found."
+        warn "qemu will probably be unusably slow."
+        warn "You should configure KVM and try again."
+        KVM=0
+    fi
+}
+
 function check_mkisofs_installed () {
     if [[ -z $(mkisofs --version 2> /dev/null) ]]; then
         error "Couldn't find ${green}mkisofs${red}."
@@ -136,7 +146,7 @@ function check_nc_installed () {
     # openbsd netcat:   prints help to console
     # gnu netcat:       prints help to console
 
-    NC_CMD=''
+    NC_CMD_ARG=''
 
     if ! hash nc 2> /dev/null; then
         error "Couldn't find ${green}nc${red}."
@@ -147,7 +157,7 @@ function check_nc_installed () {
         re='^GNU'
         if [[ "$(nc -h 2> /dev/null | head -n 1)" =~ ${re} ]]; then
             info "Applying GNU workaround for nc"
-            NC_CMD="-c"
+            NC_CMD_ARG="-c"
         fi
     fi
 }
@@ -170,11 +180,13 @@ function run_prog_checks () {
     info "Checking for program dependencies..."
     check_dl_installed
     if [[ $MACOS == 0 ]]; then
+        check_kvm
         check_mkisofs_installed
         check_nc_installed
     else
-        info "On MacOS, assuming hdiutil exists"
-        info "On MacOS, assuming netcat exists"
+        info "On macOS, skipping KVM check"
+        info "On macOS, assuming hdiutil exists"
+        info "On macOS, assuming netcat exists"
     fi
     check_qemu_installed
     if [[ $MISSING_PROGRAMS == 1 ]]; then
@@ -608,7 +620,7 @@ info "Creating startup script for completed machine"
 cat <<'RUNFILE' > "${INSTALL_DIR}/run.sh"
 #!/bin/bash
 
-ACCEL="kvm"
+ACCEL=",accel=kvm"
 CPU="-cpu host"
 VNC=""
 MONITOR="vc"
@@ -628,7 +640,7 @@ function run_machine () {
         -name arch \
         -nodefaults \
         -monitor ${MONITOR} \
-        -machine type=q35,accel=${ACCEL} \
+        -machine type=q35${ACCEL} \
         ${CPU} \
         -m 1024 \
         -device virtio-rng-pci \
@@ -653,8 +665,12 @@ function edit_runfile () {
         sed 's/VNC=""/VNC="-vnc localhost:1"/' "${INSTALL_DIR}/run.sh" > "${INSTALL_DIR}/tmp_run.sh" && mv "${INSTALL_DIR}/tmp_run.sh" "${INSTALL_DIR}/run.sh"
     fi
 
-    if [[ $MACOS == 1 ]]; then
-        sed 's/ACCEL="kvm"/ACCEL="hvf"/' "${INSTALL_DIR}/run.sh" > "${INSTALL_DIR}/tmp_run.sh" && mv "${INSTALL_DIR}/tmp_run.sh" "${INSTALL_DIR}/run.sh"
+    if [[ $MACOS -eq 1 ]]; then
+        sed 's/ACCEL=",accel=kvm"/ACCEL=",accel=hvf"/' "${INSTALL_DIR}/run.sh" > "${INSTALL_DIR}/tmp_run.sh" && mv "${INSTALL_DIR}/tmp_run.sh" "${INSTALL_DIR}/run.sh"
+    fi
+
+    if [[ $MACOS -eq 0 ]] && [[ $KVM -eq 0 ]]; then
+        sed 's/ACCEL=",accel=kvm"/ACCEL=""/'  "${INSTALL_DIR}/run.sh" > "${INSTALL_DIR}/tmp_run.sh" && mv "${INSTALL_DIR}/tmp_run.sh" "${INSTALL_DIR}/run.sh"
     fi
 
     # in case it's libexec CentOS/Fedora version...
@@ -685,22 +701,27 @@ ovmf
 # setup for the qemu machine
 
 # MacOS is accel=hvf, but this doesn't work inside virtual machine. No mac hardware to test on.
-# -cpu=host requires KVM, can't have this in mac 
+# -cpu=host requires KVM
 function run_machine () {
 
-    RUNCPU="-cpu host"
-    ACCEL="kvm"
+    ACCEL=',accel=kvm'
+    RUNCPU='-cpu host'
 
-    if [[ $MACOS == 1 ]]; then
+    if [[ $MACOS -eq 1 ]]; then
+        ACCEL=',accel=hvf'
         RUNCPU=''
-        ACCEL='hvf'
+    fi
+
+    if [[ $MACOS -eq 0 ]] && [[ $KVM -eq 0 ]]; then
+        ACCEL=''
+        RUNCPU=''
     fi
 
     "$QEMU" \
         -name arch-installer \
         -nodefaults \
         -monitor telnet:localhost:6661,server,nowait \
-        -machine type=q35,accel=${ACCEL} \
+        -machine type=q35${ACCEL} \
         ${RUNCPU} \
         -m 1024 \
         -device virtio-rng-pci \
@@ -714,7 +735,8 @@ function run_machine () {
         -device virtio-net-pci,id=nic0,netdev=net0 \
         ${VNC} \
         -drive if=pflash,format=raw,readonly=on,file="${INSTALL_DIR}"/OVMF_CODE.fd \
-        -drive if=pflash,format=raw,file="${INSTALL_DIR}"/OVMF_VARS.fd 
+        -drive if=pflash,format=raw,file="${INSTALL_DIR}"/OVMF_VARS.fd
+
 }
 
 info "Starting machine"
@@ -802,7 +824,7 @@ function send_keys () {
         sleep 0.5
     }
 
-    sub_fn | nc ${NC_CMD} localhost 6661 > /dev/null
+    sub_fn | nc ${NC_CMD_ARG} localhost 6661 > /dev/null
 }
 
 warn "Wait for the \"${red}root${norm}@archiso ${white}~${norm} #${orange}\" prompt."
@@ -817,7 +839,7 @@ fi
 info "Waiting for install to complete."
 
 function wait_for_end () {
-    if $(echo "info block" | nc ${NC_CMD} localhost 6661 > /dev/null 2>&1); then
+    if $(echo "info block" | nc ${NC_CMD_ARG} localhost 6661 > /dev/null 2>&1); then
         sleep 1
         wait_for_end
     else
