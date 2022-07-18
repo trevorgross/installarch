@@ -92,7 +92,7 @@ function check_macos () {
         info "Running on Darwin, assuming MacOS"
         MACOS=1
     fi
-    if [[ $MACOS == 1 && "${BASH_VERSION:0:1}" -lt 5 ]]; then
+    if [[ $MACOS -eq 1 ]] && [[ "${BASH_VERSION:0:1}" -lt 5 ]]; then
         error "MacOS detected, install a newer bash (e.g. brew install bash) if you haven't already."
         error "Then you must explicitly specify it: '/usr/local/bin/bash installarch.sh'"
         exit 1
@@ -179,7 +179,7 @@ function check_qemu_installed () {
 function run_prog_checks () {
     info "Checking for program dependencies..."
     check_dl_installed
-    if [[ $MACOS == 0 ]]; then
+    if [[ $MACOS -eq 0 ]]; then
         check_kvm
         check_mkisofs_installed
         check_nc_installed
@@ -189,7 +189,7 @@ function run_prog_checks () {
         info "On macOS, assuming netcat exists"
     fi
     check_qemu_installed
-    if [[ $MISSING_PROGRAMS == 1 ]]; then
+    if [[ $MISSING_PROGRAMS -eq 1 ]]; then
         error "Required programs are missing, see above. Quitting."
         exit 1;
     fi
@@ -253,9 +253,9 @@ function get_media () {
         exit 1
     else
         success "Checksum OK, proceeding."
+        INSTALL_MEDIA="$DISC"
     fi
 
-    INSTALL_MEDIA="$DISC"
 }
 
 function check_media () {
@@ -630,7 +630,7 @@ if [[ ! -z $VNC ]]; then
     MONITOR="telnet:localhost:3456,server,nowait"
 fi
 
-if [[ $ACCEL == "hvf" ]]; then
+if [[ $ACCEL == ",accel=hvf" ]]; then
     echo "Running on MacOS, using HVF"
     CPU=""
 fi
@@ -684,7 +684,7 @@ chmod 755 "${INSTALL_DIR}/run.sh"
 # create iso from install script
 info "Creating script install iso"
 cd "${INSTALL_DIR}"
-if [[ $MACOS = 1 ]]; then
+if [[ $MACOS -eq 1 ]]; then
     hdiutil makehybrid -quiet -iso -joliet -o ia.iso x
 else
     mkisofs -quiet -r -V IA -o ia.iso x
@@ -720,7 +720,7 @@ function run_machine () {
     "$QEMU" \
         -name arch-installer \
         -nodefaults \
-        -monitor telnet:localhost:6661,server,nowait \
+        -monitor telnet:localhost:3456,server,nowait \
         -machine type=q35${ACCEL} \
         ${RUNCPU} \
         -m 1024 \
@@ -792,8 +792,6 @@ function send_keys () {
           ["~"]="shift-grave_accent"
         )
 
-        # could be useful: https://www.rexegg.com/regex-anchors.html#G
-
         re='<([a-z_]+)>'
 
         for (( i=0; i < ${#str}; i++ )); do
@@ -824,7 +822,7 @@ function send_keys () {
         sleep 0.5
     }
 
-    sub_fn | nc ${NC_CMD_ARG} localhost 6661 > /dev/null
+    sub_fn | nc ${NC_CMD_ARG} localhost 3456 > /dev/null
 }
 
 warn "Wait for the \"${red}root${norm}@archiso ${white}~${norm} #${orange}\" prompt."
@@ -839,7 +837,7 @@ fi
 info "Waiting for install to complete."
 
 function wait_for_end () {
-    if $(echo "info block" | nc ${NC_CMD_ARG} localhost 6661 > /dev/null 2>&1); then
+    if $(echo "info block" | nc ${NC_CMD_ARG} localhost 3456 > /dev/null 2>&1); then
         sleep 1
         wait_for_end
     else
