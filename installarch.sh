@@ -237,7 +237,7 @@ function get_media () {
         ISO=$(curl --silent "${SERVER}md5sums.txt" | head -n 1)
     fi
 
-    DISC=$(echo "$ISO" | cut -b 34-)
+    DISC=$(echo "$ISO" | cut -b 35-)
     SUM=$(echo "$ISO" | cut -b -32)
 
     info "Latest ISO is ${white}$DISC${norm}."
