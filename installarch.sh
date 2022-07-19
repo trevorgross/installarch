@@ -84,7 +84,7 @@ KVM=1
 MACOS=0
 MISSING_PROGRAMS=0
 NC_CMD_ARG=''
-NC_TMPFILE=/tmp/nc-tmp
+NC_TMPFILE="/tmp/nc-tmp.$$"
 VNC=""
 
 if [[ "$1" == '-vnc' ]]; then
@@ -139,6 +139,13 @@ function check_mkisofs_installed () {
 }
 
 function check_nc_installed () {
+
+    # e.g. Debian doesn't match either of the below regexes. 
+    # it should use BSD style -q 0 but only "problem" if not is
+    # connection doesn't close, so the script doesn't keep running (showing "waiting" message)
+    # and no one else can connect to the monitor while nc remains connected.
+    # (only one open connection at a time to telnet monitor)
+    # nmap netcat closes automatically and doesn't need any special argument
 
     RE_BSD='^OpenBSD'
     RE_GNU='^GNU'
@@ -631,13 +638,17 @@ CPU="-cpu host"
 VNC=""
 MONITOR="vc"
 
-if [[ ! -z $VNC ]]; then
+if [[ -n $VNC ]]; then
     echo "Running headless, VNC server on localhost:1, monitor on localhost:3456"
     MONITOR="telnet:localhost:3456,server,nowait"
 fi
 
 if [[ $ACCEL == ",accel=hvf" ]]; then
     echo "Running on MacOS, using HVF"
+    CPU=""
+fi
+
+if [[ -z $ACCEL ]]; then
     CPU=""
 fi
 
@@ -710,17 +721,17 @@ ovmf
 # -cpu=host requires KVM
 function run_machine () {
 
-    ACCEL=',accel=kvm'
-    RUNCPU='-cpu host'
+    ACCEL=",accel=kvm"
+    CPU="-cpu host"
 
     if [[ $MACOS -eq 1 ]]; then
-        ACCEL=',accel=hvf'
-        RUNCPU=''
+        ACCEL=",accel=hvf"
+        CPU=""
     fi
 
     if [[ $MACOS -eq 0 ]] && [[ $KVM -eq 0 ]]; then
-        ACCEL=''
-        RUNCPU=''
+        ACCEL=""
+        CPU=""
     fi
 
     "$QEMU" \
@@ -728,7 +739,7 @@ function run_machine () {
         -nodefaults \
         -monitor telnet:localhost:3456,server,nowait \
         -machine type=q35${ACCEL} \
-        ${RUNCPU} \
+        ${CPU} \
         -m 1024 \
         -device virtio-rng-pci \
         -device virtio-gpu \
