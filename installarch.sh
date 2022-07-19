@@ -877,7 +877,7 @@ fi
 info "Waiting for install to complete."
 
 function wait_for_end () {
-    if $(echo "info block" | nc ${NC_CMD_ARG} localhost 3456 > /dev/null 2>&1); then
+    if echo "info block" | nc ${NC_CMD_ARG} localhost 3456 > /dev/null 2>&1; then
         sleep 1
         wait_for_end
     else
