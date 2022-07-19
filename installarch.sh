@@ -126,7 +126,7 @@ function check_dl_installed () {
 }
 
 function check_kvm () {
-    if [[ ! -c /dev/kvm ]]; then
+    if [[ $MACOS -eq 0 ]] && [[ ! -c /dev/kvm ]]; then
         danger "KVM device not found."
         danger "qemu will probably be unusably slow."
         danger "You should configure KVM and try again."
@@ -207,7 +207,6 @@ function run_prog_checks () {
     info "Checking for program dependencies..."
     check_dl_installed
     if [[ $MACOS -eq 0 ]]; then
-        check_kvm
         check_mkisofs_installed
         check_nc_installed
     else
@@ -222,6 +221,7 @@ function run_prog_checks () {
         error "Required programs are missing, see above. Quitting."
         exit 1
     fi
+    check_kvm
 }
 
 function check_create_install_dir () {
