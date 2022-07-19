@@ -172,7 +172,7 @@ function check_nc_installed () {
             NC_CMD_ARG="-c"
         fi
 
-        [[ -f "$NC_TMPFILE" ]] && rm "$NC_TMPFILE"
+        [[ -f "$NC_TMPFILE" ]] && rm -f "$NC_TMPFILE"
     else
         error "Couldn't find ${green}nc${red}."
         warn "Install the \"${norm}gnu-netcat${orange}\" or \"${norm}openbsd-netcat${orange}\" package."
