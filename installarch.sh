@@ -95,11 +95,11 @@ fi
 function check_macos () {
     # also sw_vers, is that better?
     if [[ "$(uname -s)" ==  "Darwin" ]]; then
-        info "Running on Darwin, assuming MacOS"
+        info "Running on Darwin, assuming macOS"
         MACOS=1
     fi
     if [[ $MACOS -eq 1 ]] && [[ "${BASH_VERSION:0:1}" -lt 5 ]]; then
-        error "MacOS detected, install a newer bash (e.g. brew install bash) if you haven't already."
+        error "macOS detected, install a newer bash (e.g. brew install bash) if you haven't already."
         error "Then you must explicitly specify it: '/usr/local/bin/bash installarch.sh'"
         exit 1
     fi
@@ -644,7 +644,7 @@ if [[ -n $VNC ]]; then
 fi
 
 if [[ $ACCEL == ",accel=hvf" ]]; then
-    echo "Running on MacOS, using HVF"
+    echo "Running on macOS, using HVF"
     CPU=""
 fi
 
@@ -717,7 +717,7 @@ ovmf
 
 # setup for the qemu machine
 
-# MacOS is accel=hvf, but this doesn't work inside virtual machine. No mac hardware to test on.
+# macOS is accel=hvf, but this doesn't work inside virtual machine. No mac hardware to test on.
 # -cpu=host requires KVM
 function run_machine () {
 
