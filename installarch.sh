@@ -1,5 +1,7 @@
 #!/bin/bash -i
 set -e -o pipefail
+trap "exit" INT TERM
+trap "kill_machine" EXIT
 ################################################################
 #
 # Create an Arch Linux qemu VM in two clicks.
@@ -85,6 +87,7 @@ function error () {
 
 KVM=1
 MACOS=0
+MACHINE_PID="/tmp/qemu-pid.$$"
 MISSING_PROGRAMS=0
 NC_CMD_ARG=""
 NC_TMPFILE="/tmp/nc-tmp.$$"
@@ -320,6 +323,13 @@ function ovmf () {
             success "Found OVMF_CODE.fd, copying."
             cp "${OVMF_DIR}/OVMF_CODE.fd" "${INSTALL_DIR}"
         fi
+    fi
+}
+
+function kill_machine () {
+    if [[ -f "$MACHINE_PID" ]]; then
+        kill $(cat "$MACHINE_PID")
+        rm "$MACHINE_PID"
     fi
 }
 
@@ -756,12 +766,15 @@ function run_machine () {
         -device virtio-net-pci,id=nic0,netdev=net0 \
         ${VNC} \
         -drive if=pflash,format=raw,readonly=on,file="${INSTALL_DIR}"/OVMF_CODE.fd \
-        -drive if=pflash,format=raw,file="${INSTALL_DIR}"/OVMF_VARS.fd
+        -drive if=pflash,format=raw,file="${INSTALL_DIR}"/OVMF_VARS.fd &
+
+    echo $! > "$1"
 
 }
 
 info "Starting machine"
-( run_machine & )
+touch "$MACHINE_PID"
+( run_machine "$MACHINE_PID" )
 
 # Thanks to
 # https://github.com/mvidner/sendkeys
@@ -866,7 +879,8 @@ function wait_for_end () {
 wait_for_end
 
 info "Removing temp files"
-[[ -f "$NC_TMPFILE" ]] && rm $NC_TMPFILE
+[[ -f "$NC_TMPFILE" ]] && rm "$NC_TMPFILE"
+[[ -f "$MACHINE_PID" ]] && rm "$MACHINE_PID"
 [[ -f "${INSTALL_DIR}/tmp_run.sh" ]] && rm "${INSTALL_DIR}/tmp_run.sh"
 [[ -f "${INSTALL_DIR}/ia.iso" ]] && rm "${INSTALL_DIR}/ia.iso"
 [[ -f "${INSTALL_DIR}/x/ia.sh" ]] && rm "${INSTALL_DIR}/x/ia.sh"
