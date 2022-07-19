@@ -338,7 +338,7 @@ function ovmf () {
 
 function kill_machine () {
     if [[ -f "$MACHINE_PID" ]]; then
-        kill $(cat "$MACHINE_PID")
+        kill "$(cat $MACHINE_PID)"
         rm -f "$MACHINE_PID"
     fi
 }
@@ -713,8 +713,8 @@ function edit_runfile () {
     fi
 
     # in case it's libexec CentOS/Fedora version...
-    if [[ "$QEMU" != "qemu-system-x86_64" ]]; then
-        sed 's#qemu-system-x86_64#$QEMU#' "${INSTALL_DIR}/run.sh" > "${INSTALL_DIR}/tmp_run.sh" && mv -f "${INSTALL_DIR}/tmp_run.sh" "${INSTALL_DIR}/run.sh"
+    if [[ $QEMU != "qemu-system-x86_64" ]]; then
+        sed "s#qemu-system-x86_64#$QEMU#" "${INSTALL_DIR}/run.sh" > "${INSTALL_DIR}/tmp_run.sh" && mv -f "${INSTALL_DIR}/tmp_run.sh" "${INSTALL_DIR}/run.sh"
     fi
 }
 
