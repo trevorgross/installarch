@@ -195,7 +195,7 @@ function check_qemu_installed () {
 }
 
 function check_qemu_img () {
-    if [[ -n $(qemu-img --version > /dev/null ) ]]; then
+    if [[ -n $(qemu-img --version 2> /dev/null) ]]; then
         success "Found qemu-img"
     else
         error "Couldn't find ${green}qemu-img${red}."
