@@ -39,6 +39,9 @@ DISK_SIZE=20
 # swap size in GB
 SWAP_SIZE=0.5
 
+# hostname of the created machine
+HOSTNAME="arch-qemu"
+
 # user info
 USERNAME="archuser"
 SSH_KEY=""
@@ -204,7 +207,7 @@ function run_prog_checks () {
     check_qemu_installed
     if [[ $MISSING_PROGRAMS -eq 1 ]]; then
         error "Required programs are missing, see above. Quitting."
-        exit 1;
+        exit 1
     fi
 }
 
@@ -256,7 +259,7 @@ function get_media () {
         info "Latest ISO found in current directory, using it."
     fi
 
-    info "Checking md5sums..."
+    info "Checking md5sum..."
 
     COMPUTEDSUM=$(md5sum "$DISC" | cut -b -32)
 
@@ -338,8 +341,9 @@ mkdir -p "${INSTALL_DIR}/x"
 # put vars files in install dir
 touch "${INSTALL_DIR}/x/vars" "${INSTALL_DIR}/x/install-vars"
 
-# populate swap files
+# populate variables
 echo "SWAP=${SWAP_SIZE}" >> "${INSTALL_DIR}/x/vars"
+echo "HOSTNAME=${HOSTNAME}" >> "${INSTALL_DIR}/x/install-vars"
 echo "USERNAME=${USERNAME}" >> "${INSTALL_DIR}/x/install-vars"
 echo "USER_SSH_KEY='${SSH_KEY}'" >> "${INSTALL_DIR}/x/install-vars"
 
@@ -452,8 +456,6 @@ function info () {
     echo -e "$(tput setaf 48)Step ${STEP}$(tput setaf 230) => $(tput setaf 48)${1}$(tput sgr0)"
     ((STEP++))
 }
-
-HOSTNAME=arch-qemu
 
 echo -e "$(tput setaf 48)Running install script in chroot$(tput sgr0)"
 
@@ -691,7 +693,9 @@ function edit_runfile () {
     fi
 
     # in case it's libexec CentOS/Fedora version...
-    sed 's#qemu-system-x86_64#$QEMU#' "${INSTALL_DIR}/run.sh" > "${INSTALL_DIR}/tmp_run.sh" && mv -f "${INSTALL_DIR}/tmp_run.sh" "${INSTALL_DIR}/run.sh"
+    if [[ "$QEMU" != "qemu-system-x86_64" ]]; then
+        sed 's#qemu-system-x86_64#$QEMU#' "${INSTALL_DIR}/run.sh" > "${INSTALL_DIR}/tmp_run.sh" && mv -f "${INSTALL_DIR}/tmp_run.sh" "${INSTALL_DIR}/run.sh"
+    fi
 }
 
 edit_runfile 
@@ -766,9 +770,6 @@ info "Starting machine"
 function send_keys () {
 
     function sub_fn () {
-
-        # require a newer version of bash on macos. brew install bash and explicitly
-        # specify /usr/local/bin/bash in first line
 
         declare -gA KEYS
 
