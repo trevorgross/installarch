@@ -194,6 +194,15 @@ function check_qemu_installed () {
     fi
 }
 
+function check_qemu_img () {
+    if [[ -n $(qemu-img --version > /dev/null ) ]]; then
+        success "Found qemu-img"
+    else
+        error "Couldn't find ${green}qemu-img${red}."
+        MISSING_PROGRAMS=1
+    fi
+}
+
 function run_prog_checks () {
     info "Checking for program dependencies..."
     check_dl_installed
@@ -208,6 +217,7 @@ function run_prog_checks () {
         info "On macOS, assuming netcat exists"
     fi
     check_qemu_installed
+    check_qemu_img
     if [[ $MISSING_PROGRAMS -eq 1 ]]; then
         error "Required programs are missing, see above. Quitting."
         exit 1
@@ -329,7 +339,7 @@ function ovmf () {
 function kill_machine () {
     if [[ -f "$MACHINE_PID" ]]; then
         kill $(cat "$MACHINE_PID")
-        rm "$MACHINE_PID"
+        rm -f "$MACHINE_PID"
     fi
 }
 
@@ -878,13 +888,13 @@ function wait_for_end () {
 wait_for_end
 
 info "Removing temp files"
-[[ -f "$NC_TMPFILE" ]] && rm "$NC_TMPFILE"
-[[ -f "$MACHINE_PID" ]] && rm "$MACHINE_PID"
-[[ -f "${INSTALL_DIR}/tmp_run.sh" ]] && rm "${INSTALL_DIR}/tmp_run.sh"
-[[ -f "${INSTALL_DIR}/ia.iso" ]] && rm "${INSTALL_DIR}/ia.iso"
-[[ -f "${INSTALL_DIR}/x/ia.sh" ]] && rm "${INSTALL_DIR}/x/ia.sh"
-[[ -f "${INSTALL_DIR}/x/vars" ]] && rm "${INSTALL_DIR}/x/vars"
-[[ -f "${INSTALL_DIR}/x/install-vars" ]] && rm "${INSTALL_DIR}/x/install-vars"
+[[ -f "$NC_TMPFILE" ]] && rm -f "$NC_TMPFILE"
+[[ -f "$MACHINE_PID" ]] && rm -f "$MACHINE_PID"
+[[ -f "${INSTALL_DIR}/tmp_run.sh" ]] && rm -f "${INSTALL_DIR}/tmp_run.sh"
+[[ -f "${INSTALL_DIR}/ia.iso" ]] && rm -f "${INSTALL_DIR}/ia.iso"
+[[ -f "${INSTALL_DIR}/x/ia.sh" ]] && rm -f "${INSTALL_DIR}/x/ia.sh"
+[[ -f "${INSTALL_DIR}/x/vars" ]] && rm -f "${INSTALL_DIR}/x/vars"
+[[ -f "${INSTALL_DIR}/x/install-vars" ]] && rm -f "${INSTALL_DIR}/x/install-vars"
 [[ -d "${INSTALL_DIR}/x" ]] && rmdir "${INSTALL_DIR}/x"
 
 info "To run your new machine, do \"cd ${blue}${INSTALL_DIR}${norm}\", \"./${green}run.sh${norm}\"."
