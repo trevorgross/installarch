@@ -768,13 +768,12 @@ function run_machine () {
         -drive if=pflash,format=raw,readonly=on,file="${INSTALL_DIR}"/OVMF_CODE.fd \
         -drive if=pflash,format=raw,file="${INSTALL_DIR}"/OVMF_VARS.fd &
 
-    echo $! > "$1"
+    echo $! > "$MACHINE_PID"
 
 }
 
 info "Starting machine"
-touch "$MACHINE_PID"
-( run_machine "$MACHINE_PID" )
+( run_machine )
 
 # Thanks to
 # https://github.com/mvidner/sendkeys
