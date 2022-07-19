@@ -83,11 +83,11 @@ function error () {
 KVM=1
 MACOS=0
 MISSING_PROGRAMS=0
-NC_CMD_ARG=''
+NC_CMD_ARG=""
 NC_TMPFILE="/tmp/nc-tmp.$$"
 VNC=""
 
-if [[ "$1" == '-vnc' ]]; then
+if [[ "$1" == "-vnc" ]]; then
     warn "Running headless. VNC server on localhost:1"
     VNC="-vnc localhost:1"
 fi
@@ -147,8 +147,8 @@ function check_nc_installed () {
     # (only one open connection at a time to telnet monitor)
     # nmap netcat closes automatically and doesn't need any special argument
 
-    RE_BSD='^OpenBSD'
-    RE_GNU='^GNU'
+    RE_BSD="^OpenBSD"
+    RE_GNU="^GNU"
 
     # use hash because different nc versions have different stderr
     if hash nc 2> /dev/null; then
@@ -238,7 +238,7 @@ function get_media () {
 
     info "trying server: ${white}$SERVER${norm}"
 
-    if [[ $(echo "$DL_CMD" | cut -b -4) == 'wget' ]]; then
+    if [[ $(echo "$DL_CMD" | cut -b -4) == "wget" ]]; then
         ISO=$(wget --quiet -O - "${SERVER}md5sums.txt" | head -n 1)
     else
         ISO=$(curl --silent "${SERVER}md5sums.txt" | head -n 1)
@@ -277,7 +277,7 @@ function check_media () {
         info "Would you like this script to try to download the latest ISO for you?"
         info "Press \"y\" to try downloading it."
         read -s -r -n 1 ans
-        if [[ $ans == 'y' ]]; then
+        if [[ $ans == "y" ]]; then
             get_media
         else
             error "No install ISO available, quitting."
@@ -494,11 +494,11 @@ mkinitcpio -P > /dev/null
 info "Aliases"
 cat <<EOFF > /etc/profile.d/nice-aliases.sh
 alias confgrep="grep -v '^#\|^$'"
-alias diff='diff --color=auto'
-alias grep='grep --color=auto'
-alias ip='ip --color=auto'
-alias ls='ls --color=auto'
-alias lsd='ls --group-directories-first'
+alias diff="diff --color=auto"
+alias grep="grep --color=auto"
+alias ip="ip --color=auto"
+alias ls="ls --color=auto"
+alias lsd="ls --group-directories-first"
 EOFF
 
 # quick and dirty way to make vim the default vi
@@ -544,7 +544,7 @@ esac
 
 eval $(dircolors -b)
 
-export EDITOR='vim'
+export EDITOR="vim"
 export HISTFILE=~/.zsh_history
 export HISTFILESIZE=1000000000
 export HISTSIZE=1000000000
@@ -553,7 +553,7 @@ export PROMPT='%B%F{47}%n%f%b@%B%F{208}%m%f%b %B%F{199}%~%f%b %# '
 export RPROMPT='%B%F{69}%D{%H:%M:%S}%f%b'
 export SAVEHIST=10000
 export TERM=xterm-256color
-export VISUAL='vim'
+export VISUAL="vim"
 
 setopt INC_APPEND_HISTORY
 setopt EXTENDED_HISTORY
@@ -566,9 +566,9 @@ bindkey "^R" history-incremental-search-backward
 bindkey "^[[3~" delete-char
 
 . /etc/profile.d/nice-aliases.sh
-alias bc='bc -l'
+alias bc="bc -l"
 alias dmesg="dmesg -T"
-alias history='history -i 1'
+alias history="history -i 1"
 ENDZSH
 
 chown -R "${USERNAME}":"${USERNAME}" /home/"${USERNAME}"
@@ -679,19 +679,19 @@ RUNFILE
 function edit_runfile () {
     if [[ -n $VNC ]]; then
         # no "sed -i" on macos...
-        sed 's/VNC=""/VNC="-vnc localhost:1"/' "${INSTALL_DIR}/run.sh" > "${INSTALL_DIR}/tmp_run.sh" && mv "${INSTALL_DIR}/tmp_run.sh" "${INSTALL_DIR}/run.sh"
+        sed 's/VNC=""/VNC="-vnc localhost:1"/' "${INSTALL_DIR}/run.sh" > "${INSTALL_DIR}/tmp_run.sh" && mv -f "${INSTALL_DIR}/tmp_run.sh" "${INSTALL_DIR}/run.sh"
     fi
 
     if [[ $MACOS -eq 1 ]]; then
-        sed 's/ACCEL=",accel=kvm"/ACCEL=",accel=hvf"/' "${INSTALL_DIR}/run.sh" > "${INSTALL_DIR}/tmp_run.sh" && mv "${INSTALL_DIR}/tmp_run.sh" "${INSTALL_DIR}/run.sh"
+        sed 's/ACCEL=",accel=kvm"/ACCEL=",accel=hvf"/' "${INSTALL_DIR}/run.sh" > "${INSTALL_DIR}/tmp_run.sh" && mv -f "${INSTALL_DIR}/tmp_run.sh" "${INSTALL_DIR}/run.sh"
     fi
 
     if [[ $MACOS -eq 0 ]] && [[ $KVM -eq 0 ]]; then
-        sed 's/ACCEL=",accel=kvm"/ACCEL=""/'  "${INSTALL_DIR}/run.sh" > "${INSTALL_DIR}/tmp_run.sh" && mv "${INSTALL_DIR}/tmp_run.sh" "${INSTALL_DIR}/run.sh"
+        sed 's/ACCEL=",accel=kvm"/ACCEL=""/'  "${INSTALL_DIR}/run.sh" > "${INSTALL_DIR}/tmp_run.sh" && mv -f "${INSTALL_DIR}/tmp_run.sh" "${INSTALL_DIR}/run.sh"
     fi
 
     # in case it's libexec CentOS/Fedora version...
-    sed "s#qemu-system-x86_64#$QEMU#" "${INSTALL_DIR}/run.sh" > "${INSTALL_DIR}/tmp_run.sh" && mv "${INSTALL_DIR}/tmp_run.sh" "${INSTALL_DIR}/run.sh"
+    sed 's#qemu-system-x86_64#$QEMU#' "${INSTALL_DIR}/run.sh" > "${INSTALL_DIR}/tmp_run.sh" && mv -f "${INSTALL_DIR}/tmp_run.sh" "${INSTALL_DIR}/run.sh"
 }
 
 edit_runfile 
