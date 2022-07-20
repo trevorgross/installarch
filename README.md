@@ -18,5 +18,5 @@ Windows is not supported.
 
 See the top of the script for variables. You can change the disk size, swap size, username, hostname, etc. 
 
-use the `-vnc` option to run headless. A VNC server will run on localhost:1.
+Use the `-vnc` option to run headless. A VNC server will run on localhost:1.
 
