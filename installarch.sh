@@ -88,6 +88,7 @@ function error () {
 KVM=1
 MACOS=0
 MACHINE_PID="/tmp/qemu-pid.$$"
+MD5SUM="md5sum"
 MISSING_PROGRAMS=0
 NC_CMD_ARG=""
 NC_TMPFILE="/tmp/nc-tmp.$$"
@@ -103,6 +104,7 @@ function check_macos () {
     if [[ "$(uname -s)" ==  "Darwin" ]]; then
         info "Running on Darwin, assuming macOS"
         MACOS=1
+        MD5SUM="md5 -r"
     fi
     if [[ $MACOS -eq 1 ]] && [[ "${BASH_VERSION:0:1}" -lt 5 ]]; then
         error "macOS detected, install a newer bash (e.g. brew install bash) if you haven't already."
@@ -274,7 +276,7 @@ function get_media () {
 
     info "Checking md5sum..."
 
-    COMPUTEDSUM=$(md5sum "$DISC" | cut -b -32)
+    COMPUTEDSUM=$($MD5SUM "$DISC" | cut -b -32)
 
     if [[ $COMPUTEDSUM != "$SUM" ]]; then
         error "Checksum failed."
