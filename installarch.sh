@@ -15,7 +15,7 @@ trap "kill_machine" EXIT
 #   - mkisofs (hditool on mac)
 #   - nc
 #   - OVMF (optional, script downloads if not found)
-#   - qemu, KVM very highly recommended (hvf on macOS, untested)
+#   - qemu, KVM very highly recommended (hvf on macOS)
 #
 # Set your options below.
 # Add an SSH public key to allow passwordless login to your VM.
@@ -85,7 +85,7 @@ function error () {
     echo -e " ${red}! ${1}${norm}"
 }
 
-KVM=1
+ACCEL=""
 MACOS=0
 MACHINE_PID="/tmp/qemu-pid.$$"
 MD5SUM="md5sum"
@@ -108,7 +108,7 @@ function check_macos () {
     fi
     if [[ $MACOS -eq 1 ]] && [[ "${BASH_VERSION:0:1}" -lt 5 ]]; then
         error "macOS detected, install a newer bash (e.g. brew install bash) if you haven't already."
-        error "Then you must explicitly specify it: '/usr/local/bin/bash installarch.sh'"
+        error "Then you must explicitly specify it: '${white}/usr/local/bin/bash installarch.sh${red}'"
         exit 1
     fi
 }
@@ -127,12 +127,30 @@ function check_dl_installed () {
     fi
 }
 
-function check_kvm () {
-    if [[ $MACOS -eq 0 ]] && [[ ! -c /dev/kvm ]]; then
-        danger "KVM device not found."
+function check_accel () {
+
+    function no_accel () {
+        if [[ $MACOS -eq 1 ]]; then
+            DEV="Hypervisor framework"
+            VIRT="virtualization"
+        else
+            DEV="KVM device"
+            VIRT="KVM"
+        fi
+        danger "$DEV not available."
         danger "qemu will probably be unusably slow."
-        danger "You should configure KVM and try again."
-        KVM=0
+        danger "You should configure $VIRT and try again."
+    }
+
+    if [[ $MACOS -eq 1 ]] && [[ "$(sysctl kern.hv_support 2> /dev/null)" =~ 1$ ]]; then
+        info "Hardware acceleration available."
+        ACCEL=",accel=hvf"
+    elif [[ -c /dev/kvm ]]; then
+        info "Hardware acceleration available."
+        ACCEL=",accel=kvm"
+    else
+        no_accel
+        ACCEL=""
     fi
 }
 
@@ -212,9 +230,8 @@ function run_prog_checks () {
         check_mkisofs_installed
         check_nc_installed
     else
-        info "On macOS, skipping KVM check"
         info "On macOS, assuming hdiutil exists"
-        # BSD netcat? What, if any, arguments does it need?
+        # macOS netcat closes connection w/o extra args
         info "On macOS, assuming netcat exists"
     fi
     check_qemu_installed
@@ -223,7 +240,7 @@ function run_prog_checks () {
         error "Required programs are missing, see above. Quitting."
         exit 1
     fi
-    check_kvm
+    check_accel
 }
 
 function check_create_install_dir () {
@@ -657,23 +674,18 @@ info "Creating startup script for completed machine"
 cat <<'RUNFILE' > "${INSTALL_DIR}/run.sh"
 #!/bin/bash
 
-ACCEL=",accel=kvm"
-CPU="-cpu host"
-VNC=""
+ACCEL=""
+CPU=""
 MONITOR="vc"
+VNC=""
 
 if [[ -n $VNC ]]; then
     echo "Running headless, VNC server on localhost:1, monitor on localhost:3456"
     MONITOR="telnet:localhost:3456,server,nowait"
 fi
 
-if [[ $ACCEL == ",accel=hvf" ]]; then
-    echo "Running on macOS, using HVF"
-    CPU=""
-fi
-
-if [[ -z $ACCEL ]]; then
-    CPU=""
+if [[ $ACCEL == ",accel=kvm" ]]; then
+    CPU="-cpu host"
 fi
 
 function run_machine () {
@@ -706,12 +718,8 @@ function edit_runfile () {
         sed 's/VNC=""/VNC="-vnc localhost:1"/' "${INSTALL_DIR}/run.sh" > "${INSTALL_DIR}/tmp_run.sh" && mv -f "${INSTALL_DIR}/tmp_run.sh" "${INSTALL_DIR}/run.sh"
     fi
 
-    if [[ $MACOS -eq 1 ]]; then
-        sed 's/ACCEL=",accel=kvm"/ACCEL=",accel=hvf"/' "${INSTALL_DIR}/run.sh" > "${INSTALL_DIR}/tmp_run.sh" && mv -f "${INSTALL_DIR}/tmp_run.sh" "${INSTALL_DIR}/run.sh"
-    fi
-
-    if [[ $MACOS -eq 0 ]] && [[ $KVM -eq 0 ]]; then
-        sed 's/ACCEL=",accel=kvm"/ACCEL=""/'  "${INSTALL_DIR}/run.sh" > "${INSTALL_DIR}/tmp_run.sh" && mv -f "${INSTALL_DIR}/tmp_run.sh" "${INSTALL_DIR}/run.sh"
+    if [[ -n $ACCEL ]]; then
+        sed "s/ACCEL=\"\"/ACCEL=\"${ACCEL}\"/" "${INSTALL_DIR}/run.sh" > "${INSTALL_DIR}/tmp_run.sh" && mv -f "${INSTALL_DIR}/tmp_run.sh" "${INSTALL_DIR}/run.sh"
     fi
 
     # in case it's libexec CentOS/Fedora version...
@@ -743,21 +751,13 @@ ovmf
 
 # setup for the qemu machine
 
-# macOS is accel=hvf, but this doesn't work inside virtual machine. No mac hardware to test on.
 # -cpu=host requires KVM
 function run_machine () {
 
-    ACCEL=",accel=kvm"
-    CPU="-cpu host"
+    CPU=""
 
-    if [[ $MACOS -eq 1 ]]; then
-        ACCEL=",accel=hvf"
-        CPU=""
-    fi
-
-    if [[ $MACOS -eq 0 ]] && [[ $KVM -eq 0 ]]; then
-        ACCEL=""
-        CPU=""
+    if [[ $ACCEL == ",accel=kvm" ]]; then
+        CPU="-cpu host"
     fi
 
     "$QEMU" \
