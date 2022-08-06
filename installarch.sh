@@ -94,6 +94,20 @@ NC_CMD_ARG=""
 NC_TMPFILE="/tmp/nc-tmp.$$"
 VNC=""
 
+function kill_machine () {
+    if [[ -f "$MACHINE_PID" ]]; then
+        kill "$(cat $MACHINE_PID)"
+        rm -f "$MACHINE_PID"
+    fi
+}
+
+if [[ "${BASH_VERSION:0:1}" -lt 5 ]]; then
+    error "Your version of bash is likely too old to run this script."
+    error "The default macOS bash won't work. You should install bash via brew."
+    error "Then you must explicitly specify it: '${norm}/usr/local/bin/bash installarch.sh${red}'"
+    exit 1
+fi
+
 if [[ "$1" == "-vnc" ]]; then
     warn "Running headless. VNC server on localhost:1"
     VNC="-vnc localhost:1"
@@ -105,11 +119,6 @@ function check_macos () {
         info "Running on Darwin, assuming macOS"
         MACOS=1
         MD5SUM="md5 -r"
-    fi
-    if [[ $MACOS -eq 1 ]] && [[ "${BASH_VERSION:0:1}" -lt 5 ]]; then
-        error "macOS detected, install a newer bash (e.g. brew install bash) if you haven't already."
-        error "Then you must explicitly specify it: '${white}/usr/local/bin/bash installarch.sh${red}'"
-        exit 1
     fi
 }
 
@@ -352,13 +361,6 @@ function ovmf () {
             success "Found OVMF_CODE.fd, copying."
             cp "${OVMF_DIR}/OVMF_CODE.fd" "${INSTALL_DIR}"
         fi
-    fi
-}
-
-function kill_machine () {
-    if [[ -f "$MACHINE_PID" ]]; then
-        kill "$(cat $MACHINE_PID)"
-        rm -f "$MACHINE_PID"
     fi
 }
 
