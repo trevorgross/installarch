@@ -92,6 +92,7 @@ MD5SUM="md5sum"
 MISSING_PROGRAMS=0
 NC_CMD_ARG=""
 NC_TMPFILE="/tmp/nc-tmp.$$"
+QEMU_GA="/tmp/qemu-ga.$$"
 VNC=""
 
 function delete_temp_files () {
@@ -794,6 +795,9 @@ function run_machine () {
         -device virtio-gpu \
         -device qemu-xhci,id=xhci \
         -device usb-tablet \
+        -device virtio-serial \
+        -chardev socket,path=${QEMU_GA},server=on,wait=off,id=qemu-ga \
+        -device virtserialport,chardev=qemu-ga,name=org.qemu.guest_agent.0 \
         -drive id=disk0,if=virtio,format=raw,file="${INSTALL_DIR}"/arch.img,media=disk \
         -drive file="${INSTALL_MEDIA}",media=cdrom \
         -drive file="${INSTALL_DIR}"/ia.iso,media=cdrom \
