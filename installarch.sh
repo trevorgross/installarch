@@ -94,11 +94,24 @@ NC_CMD_ARG=""
 NC_TMPFILE="/tmp/nc-tmp.$$"
 VNC=""
 
+function delete_temp_files () {
+    info "Removing temp files"
+    [[ -f "$NC_TMPFILE" ]] && rm -f "$NC_TMPFILE"
+    [[ -f "$MACHINE_PID" ]] && rm -f "$MACHINE_PID"
+    [[ -f "${INSTALL_DIR}/tmp_run.sh" ]] && rm -f "${INSTALL_DIR}/tmp_run.sh"
+    [[ -f "${INSTALL_DIR}/ia.iso" ]] && rm -f "${INSTALL_DIR}/ia.iso"
+    [[ -f "${INSTALL_DIR}/x/ia.sh" ]] && rm -f "${INSTALL_DIR}/x/ia.sh"
+    [[ -f "${INSTALL_DIR}/x/vars" ]] && rm -f "${INSTALL_DIR}/x/vars"
+    [[ -f "${INSTALL_DIR}/x/install-vars" ]] && rm -f "${INSTALL_DIR}/x/install-vars"
+    [[ -d "${INSTALL_DIR}/x" ]] && rmdir "${INSTALL_DIR}/x"
+}
+
 function kill_machine () {
     if [[ -f "$MACHINE_PID" ]]; then
         kill "$(cat $MACHINE_PID)"
         rm -f "$MACHINE_PID"
     fi
+    delete_temp_files
 }
 
 if [[ "${BASH_VERSION:0:1}" -lt 5 ]]; then
@@ -891,14 +904,6 @@ function wait_for_end () {
 
 wait_for_end
 
-info "Removing temp files"
-[[ -f "$NC_TMPFILE" ]] && rm -f "$NC_TMPFILE"
-[[ -f "$MACHINE_PID" ]] && rm -f "$MACHINE_PID"
-[[ -f "${INSTALL_DIR}/tmp_run.sh" ]] && rm -f "${INSTALL_DIR}/tmp_run.sh"
-[[ -f "${INSTALL_DIR}/ia.iso" ]] && rm -f "${INSTALL_DIR}/ia.iso"
-[[ -f "${INSTALL_DIR}/x/ia.sh" ]] && rm -f "${INSTALL_DIR}/x/ia.sh"
-[[ -f "${INSTALL_DIR}/x/vars" ]] && rm -f "${INSTALL_DIR}/x/vars"
-[[ -f "${INSTALL_DIR}/x/install-vars" ]] && rm -f "${INSTALL_DIR}/x/install-vars"
-[[ -d "${INSTALL_DIR}/x" ]] && rmdir "${INSTALL_DIR}/x"
+delete_temp_files
 
 info "To run your new machine, do \"cd ${blue}${INSTALL_DIR}${norm}\", \"./${green}run.sh${norm}\"."
