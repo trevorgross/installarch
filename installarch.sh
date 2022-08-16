@@ -479,8 +479,16 @@ info "Mount partitions"
 mount /dev/vg/root /mnt
 mkdir /mnt/efi && mount ${DISK}1 /mnt/efi
 
-info "update package databases"
-pacman -Syy
+info "Wait for pacman-init service to start. This can take a long time."
+function check_pacman () {
+    if systemctl show --no-pager pacman-init.service | grep -qx ActiveState=activating; then
+        echo -n "."
+        sleep 1
+        check_pacman
+    fi
+}
+
+check_pacman
 
 info "pacstrap"
 if ! pacstrap /mnt base linux; then
