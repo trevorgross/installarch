@@ -427,10 +427,32 @@ info "Start ntp"
 
 timedatectl set-ntp true
 
-info "Formatting: wipefs and gdisk"
+info "Cleaning up in case this script is being re-run"
 
-wipefs -af ${DISK}
+info "Unmount..."
+umount /mnt/efi &> /dev/null || true
+umount /mnt &> /dev/null || true
 
+info "Swapoff..."
+swapoff /dev/vg/swap &> /dev/null || true
+
+info "Delete lvm..."
+lvchange -an /dev/vg/swap &> /dev/null || true
+lvchange -an /dev/vg/root &> /dev/null || true
+lvremove /dev/vg/swap &> /dev/null || true
+lvremove /dev/vg/root &> /dev/null || true
+vgremove vg &> /dev/null || true
+pvremove ${DISK}2 &> /dev/null || true
+
+info "wipefs on disk and partitions..."
+wipefs -af ${DISK} &> /dev/null || true
+wipefs -af ${DISK}1 &> /dev/null || true
+wipefs -af ${DISK}2 &> /dev/null || true
+
+info "partx -u ${DISK}..."
+partx -u ${DISK} &> /dev/null || true
+
+info "Format with gdisk"
 (
 echo o      # delete all partitions
 echo y      # confirm
@@ -451,10 +473,9 @@ echo y      # confirm write
 info "partx -u ${DISK}"
 partx -u ${DISK}
 
-# on off chance this is a reinstall
-info "wipefs on individual partitions"
-wipefs -af ${DISK}1
-wipefs -af ${DISK}2
+info "wipefs on partitions in case reinstall"
+wipefs -af ${DISK}1 &> /dev/null || true
+wipefs -af ${DISK}2 &> /dev/null || true
 
 ### LVM
 info "LVM: Create physical volume"
@@ -464,8 +485,8 @@ info "LVM: Create volume group"
 vgcreate vg ${DISK}2
 
 info "LVM: Create logical volumes"
-lvcreate -L "${SWAP}G" vg -n swap
-lvcreate -l 100%FREE vg -n root
+lvcreate -Wn -L "${SWAP}G" vg -n swap
+lvcreate -Wn -l 100%FREE vg -n root
 
 info "Format disks"
 mkfs.fat -F32 ${DISK}1 > /dev/null
