@@ -112,7 +112,6 @@ function kill_machine () {
         kill "$(cat $MACHINE_PID)"
         rm -f "$MACHINE_PID"
     fi
-    delete_temp_files
 }
 
 if [[ "${BASH_VERSION:0:1}" -lt 5 ]]; then
@@ -437,12 +436,16 @@ info "Swapoff..."
 [[ -n $(swapon --show) ]] && swapoff /dev/vg/swap
 
 info "Delete lvm..."
-lvchange -an /dev/vg/swap &> /dev/null || true
-lvchange -an /dev/vg/root &> /dev/null || true
-lvremove /dev/vg/swap &> /dev/null || true
-lvremove /dev/vg/root &> /dev/null || true
-vgremove vg &> /dev/null || true
-pvremove ${DISK}2 &> /dev/null || true
+if [[ -n $(lvscan | grep swap) ]]; then
+    lvchange -an /dev/vg/swap
+    lvremove /dev/vg/swap
+fi
+if [[ -n $(lvscan | grep root) ]]; then
+    lvchange -an /dev/vg/root
+    lvremove /dev/vg/root
+fi
+[[ -n $(vgscan) ]] && vgremove vg
+[[ -z $(pvscan | grep '^  No') ]] && pvremove ${DISK}2
 
 info "wipefs on disk and partitions..."
 wipefs -af ${DISK} &> /dev/null || true
