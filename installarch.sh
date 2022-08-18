@@ -430,11 +430,11 @@ timedatectl set-ntp true
 info "Cleaning up in case this script is being re-run"
 
 info "Unmount..."
-umount /mnt/efi &> /dev/null || true
-umount /mnt &> /dev/null || true
+[[ $(grep "^/dev/vda1" /proc/mounts) ]] && umount /mnt/efi
+[[ $(grep "^/dev/mapper/vg-root" /proc/mounts) ]] && umount /mnt
 
 info "Swapoff..."
-swapoff /dev/vg/swap &> /dev/null || true
+[[ -n $(swapon --show) ]] && swapoff /dev/vg/swap
 
 info "Delete lvm..."
 lvchange -an /dev/vg/swap &> /dev/null || true
