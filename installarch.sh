@@ -658,6 +658,7 @@ bindkey "^[[3~" delete-char
 alias bc="bc -l"
 alias dmesg="dmesg -T"
 alias history="history -i 1"
+function ccd { mkdir -p "$1" && cd "$1" }
 ENDZSH
 
 chown -R "${USERNAME}":"${USERNAME}" /home/"${USERNAME}"
