@@ -296,13 +296,13 @@ function get_media () {
     info "trying server: ${white}$SERVER${norm}"
 
     if [[ $(echo "$DL_CMD" | cut -b -4) == "wget" ]]; then
-        ISO=$(wget --quiet -O - "${SERVER}md5sums.txt" | head -n 1)
+        ISO=$(wget --quiet -O - "${SERVER}sha256sums.txt" | head -n 1)
     else
-        ISO=$(curl --silent "${SERVER}md5sums.txt" | head -n 1)
+        ISO=$(curl --silent "${SERVER}sha256sums.txt" | head -n 1)
     fi
 
-    DISC=$(echo "$ISO" | cut -b 35-)
-    SUM=$(echo "$ISO" | cut -b -32)
+    SUM=$(echo "$ISO" | cut -b -64)
+    DISC=$(echo "$ISO" | cut -b 67-)
 
     info "Latest ISO is ${white}$DISC${norm}."
 
@@ -563,7 +563,7 @@ echo "${HOSTNAME}" > /etc/hostname
 info "Full-system update, can avoid problems w/Grub"
 pacman --noconfirm -Syu
 
-PROGS="dhcpcd efibootmgr ethtool gdisk grub htop inetutils linux-headers lvm2 nfs-utils nmap openssh sudo tcpdump usbutils vim wget zsh"
+PROGS="efibootmgr ethtool gdisk grub htop inetutils linux-headers lvm2 nfs-utils nmap openssh sudo tcpdump usbutils vim wget zsh"
 info "Install some programs: ${PROGS}"
 pacman --noconfirm -S ${PROGS}
 
@@ -594,8 +594,17 @@ EOFF
 info "Link vim to vi"
 ln -s /usr/bin/vim /usr/bin/vi
 
-info "Using dhcpcd for simplicity"
-systemctl enable dhcpcd
+info "let's try systemd networking"
+cat <<NETCONFIG > /etc/systemd/network/en.network
+[Match]
+Name=en*
+
+[Network]
+DHCP=yes
+DNSSEC=no
+NETCONFIG
+systemctl enable systemd-networkd
+systemctl enable systemd-resolved
 
 info "Enable sshd"
 systemctl enable sshd
