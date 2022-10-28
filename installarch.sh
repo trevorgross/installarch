@@ -11,7 +11,7 @@ trap "kill_machine" EXIT
 # You provide:
 #   - Arch install ISO (script can download this if not found)
 #   - curl or wget
-#   - md5sum (if the script downloads the install ISO)
+#   - sha256sum (if the script downloads the install ISO)
 #   - mkisofs (hditool on mac)
 #   - nc
 #   - OVMF (optional, script downloads if not found)
@@ -88,7 +88,7 @@ function error () {
 ACCEL=""
 MACOS=0
 MACHINE_PID="/tmp/qemu-pid.$$"
-MD5SUM="md5sum"
+CHECKSUM_PROGRAM="sha256sum"
 MISSING_PROGRAMS=0
 NC_CMD_ARG=""
 NC_TMPFILE="/tmp/nc-tmp.$$"
@@ -131,7 +131,7 @@ function check_macos () {
     if [[ "$(uname -s)" ==  "Darwin" ]]; then
         info "Running on Darwin, assuming macOS"
         MACOS=1
-        MD5SUM="md5 -r"
+        CHECKSUM_PROGRAM="shasum -a 256" # untested
     fi
 }
 
@@ -313,9 +313,9 @@ function get_media () {
         info "Latest ISO found in current directory, using it."
     fi
 
-    info "Checking md5sum..."
+    info "Checking checksum..."
 
-    COMPUTEDSUM=$($MD5SUM "$DISC" | cut -b -32)
+    COMPUTEDSUM=$($CHECKSUM_PROGRAM "$DISC" | cut -b -64)
 
     if [[ $COMPUTEDSUM != "$SUM" ]]; then
         error "Checksum failed."
