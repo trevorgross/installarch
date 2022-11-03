@@ -506,10 +506,12 @@ mkdir /mnt/efi && mount ${DISK}1 /mnt/efi
 
 info "Wait for pacman-init service to start. This can take a long time."
 function check_pacman () {
-    if systemctl show --no-pager pacman-init.service | grep -qx ActiveState=activating; then
+    if ! systemctl show --no-pager pacman-init.service | grep -qx ActiveState=active; then
         echo -n "."
         sleep 1
         check_pacman
+    else
+        echo ""
     fi
 }
 
