@@ -238,7 +238,7 @@ function check_qemu_installed () {
 
 function check_qemu_img () {
     if [[ -n $(qemu-img --version 2> /dev/null) ]]; then
-        success "Found qemu-img"
+        success "Found qemu-img."
     else
         error "Couldn't find ${green}qemu-img${red}."
         MISSING_PROGRAMS=1
@@ -331,8 +331,8 @@ function get_media () {
 function check_media () {
     if [[ ! -f "${INSTALL_MEDIA}" ]]; then
         error "Install media ${white}$INSTALL_MEDIA${red} not found."
-        info "Would you like this script to try to download the latest ISO for you?"
-        info "Press \"y\" to try downloading it."
+        warn "Would you like this script to try to download the latest ISO for you?"
+        warn "Press \"y\" to try downloading it."
         read -s -r -n 1 ans
         if [[ $ans == "y" ]]; then
             get_media
