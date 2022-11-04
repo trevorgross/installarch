@@ -4,7 +4,7 @@ Create an [Arch Linux](https://archlinux.org) [qemu](https://www.qemu.org) VM in
 Run the script, press "y" to download the install ISO, and hit "enter" when prompted. That's it.
 
 Requires a recent bash and a few dependencies:
-`curl` or `wget`, `mkisofs`, `nc`, and of course `qemu-system-x86_64` and `qemu-img`. `md5sum` is needed if the script downloads the install ISO for you.
+`curl` or `wget`, `mkisofs`, `nc`, and of course `qemu-system-x86_64` and `qemu-img`. `sha256sum` is needed if the script downloads the install ISO for you.
 
 KVM is _highly_ recommended. It will work without it, but may be so slow it's not worth it.
 
