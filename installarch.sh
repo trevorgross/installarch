@@ -168,7 +168,7 @@ function check_accel () {
         info "Hardware acceleration available."
         ACCEL=",accel=hvf"
     elif [[ -c /dev/kvm ]]; then
-        info "Hardware acceleration available."
+        info "Found /dev/kvm, hardware acceleration likely available."
         ACCEL=",accel=kvm"
     else
         no_accel
