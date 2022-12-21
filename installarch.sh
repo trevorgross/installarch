@@ -516,6 +516,9 @@ function check_pacman () {
 
 check_pacman
 
+info "Update archlinux-keyring"
+pacman --noconfirm -Sy archlinux-keyring
+
 info "pacstrap"
 if ! pacstrap /mnt base linux; then
     echo "$(tput setaf 196)Something is wrong. Couldn't install base system."
