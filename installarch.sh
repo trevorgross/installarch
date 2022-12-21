@@ -62,7 +62,6 @@ orange=$(tput setaf 178)
 yellow=$(tput setaf 226)
 green=$(tput setaf 47)
 blue=$(tput setaf 75)
-white=$(tput setaf 15)
 norm=$(tput sgr0)
 
 function success () {
@@ -293,7 +292,7 @@ function get_media () {
     NUMLINKS=${#LINKS[@]}
     SERVER="${LINKS[$((RANDOM % NUMLINKS))]}"
 
-    info "trying server: ${white}$SERVER${norm}"
+    info "trying server: $SERVER"
 
     if [[ $(echo "$DL_CMD" | cut -b -4) == "wget" ]]; then
         ISO=$(wget --quiet -O - "${SERVER}sha256sums.txt" | head -n 1)
@@ -304,7 +303,7 @@ function get_media () {
     SUM=$(echo "$ISO" | cut -b -64)
     DISC=$(echo "$ISO" | cut -b 67-)
 
-    info "Latest ISO is ${white}$DISC${norm}."
+    info "Latest ISO is $DISC."
 
     if [[ ! -f $DISC ]]; then
         info "Fetching ISO..."
@@ -330,7 +329,7 @@ function get_media () {
 
 function check_media () {
     if [[ ! -f "${INSTALL_MEDIA}" ]]; then
-        error "Install media ${white}$INSTALL_MEDIA${red} not found."
+        error "Install media ${norm}$INSTALL_MEDIA${red} not found."
         warn "Would you like this script to try to download the latest ISO for you?"
         warn "Press \"y\" to try downloading it."
         read -s -r -n 1 ans
@@ -338,8 +337,8 @@ function check_media () {
             get_media
         else
             error "No install ISO available, quitting."
-            info "You may download an ISO from ${white}https://archlinux.org/download/${norm}"
-            info "and set the ${white}\$INSTALL_MEDIA${norm} variable to point to your ISO."
+            info "You may download an ISO from https://archlinux.org/download/"
+            info "and set the \$INSTALL_MEDIA variable to point to your ISO."
             exit 1
         fi
     fi
@@ -931,7 +930,7 @@ function send_keys () {
     sub_fn | nc ${NC_CMD_ARG} localhost 3456 > /dev/null
 }
 
-warn "Wait for the \"${red}root${norm}@archiso ${white}~${norm} #${orange}\" prompt."
+warn "Wait for the \"${red}root${norm}@archiso ~ #${orange}\" prompt."
 sleep 5
 warn "Press enter in THIS terminal window when you see that prompt."
 read -sr input
