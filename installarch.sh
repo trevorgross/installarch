@@ -598,7 +598,7 @@ EOFF
 info "Link vim to vi"
 ln -s /usr/bin/vim /usr/bin/vi
 
-info "let's try systemd networking"
+info "Enable systemd networking"
 cat <<NETCONFIG > /etc/systemd/network/en.network
 [Match]
 Name=en*
