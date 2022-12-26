@@ -763,7 +763,7 @@ function run_machine () {
         -device virtio-gpu \
         -device qemu-xhci,id=xhci \
         -device usb-tablet \
-        -drive id=disk0,if=virtio,format=raw,file=arch.img,media=disk \
+        -drive id=disk0,if=virtio,format=qcow2,file=arch.qcow2,media=disk \
         -drive media=cdrom \
         -netdev user,id=net0 \
         -device virtio-net-pci,id=nic0,netdev=net0 \
@@ -807,7 +807,7 @@ cd - > /dev/null
 
 # create virtual hard drive
 info "Creating virtual hard drive (${DISK_SIZE}GB)"
-qemu-img create -f raw "${INSTALL_DIR}/arch.img" ${DISK_SIZE}G > /dev/null
+qemu-img create -f qcow2 "${INSTALL_DIR}/arch.qcow2" ${DISK_SIZE}G > /dev/null
 
 # set up ovmf (UEFI files)
 ovmf
@@ -837,7 +837,7 @@ function run_machine () {
         -device virtio-serial \
         -chardev socket,path=${QEMU_GA},server=on,wait=off,id=qemu-ga \
         -device virtserialport,chardev=qemu-ga,name=org.qemu.guest_agent.0 \
-        -drive id=disk0,if=virtio,format=raw,file="${INSTALL_DIR}"/arch.img,media=disk \
+        -drive id=disk0,if=virtio,format=qcow2,file="${INSTALL_DIR}"/arch.qcow2,media=disk \
         -drive file="${INSTALL_MEDIA}",media=cdrom \
         -drive file="${INSTALL_DIR}"/ia.iso,media=cdrom \
         -netdev user,id=net0 \
