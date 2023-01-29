@@ -64,23 +64,23 @@ green=$(tput setaf 47)
 blue=$(tput setaf 75)
 norm=$(tput sgr0)
 
-function success () {
+success () {
     echo -e " ${green}✔${norm} ${1}"
 }
 
-function info () {
+info () {
     echo -e " ${blue}ℹ${norm} ${1}"
 }
 
-function warn () {
+warn () {
     echo -e " ${orange}🠪 ${1}${norm}"
 }
 
-function danger () {
+danger () {
     echo -e " ${yellow}⚠ ${1}${norm}"
 }
 
-function error () {
+error () {
     echo -e " ${red}! ${1}${norm}"
 }
 
@@ -94,7 +94,7 @@ NC_TMPFILE="/tmp/nc-tmp.$$"
 QEMU_GA="/tmp/qemu-ga.$$"
 VNC=""
 
-function delete_temp_files () {
+delete_temp_files () {
     info "Removing temp files"
     [[ -f "$NC_TMPFILE" ]] && rm -f "$NC_TMPFILE"
     [[ -f "$MACHINE_PID" ]] && rm -f "$MACHINE_PID"
@@ -106,7 +106,7 @@ function delete_temp_files () {
     [[ -d "${INSTALL_DIR}/x" ]] && rmdir "${INSTALL_DIR}/x"
 }
 
-function kill_machine () {
+kill_machine () {
     if [[ -f "$MACHINE_PID" ]]; then
         kill "$(cat $MACHINE_PID)"
         rm -f "$MACHINE_PID"
@@ -125,7 +125,7 @@ if [[ "$1" == "-vnc" ]]; then
     VNC="-vnc localhost:1"
 fi
 
-function check_macos () {
+check_macos () {
     # also sw_vers, is that better?
     if [[ "$(uname -s)" ==  "Darwin" ]]; then
         info "Running on Darwin, assuming macOS"
@@ -134,7 +134,7 @@ function check_macos () {
     fi
 }
 
-function check_dl_installed () {
+check_dl_installed () {
     if [[ -n "$(wget --version 2> /dev/null)" ]]; then
         success "Found wget."
         DL_CMD="wget --quiet --show-progress -O"
@@ -148,9 +148,9 @@ function check_dl_installed () {
     fi
 }
 
-function check_accel () {
+check_accel () {
 
-    function no_accel () {
+    no_accel () {
         if [[ $MACOS -eq 1 ]]; then
             DEV="Hypervisor framework"
             VIRT="virtualization"
@@ -175,7 +175,7 @@ function check_accel () {
     fi
 }
 
-function check_mkisofs_installed () {
+check_mkisofs_installed () {
     if [[ -z $(mkisofs --version 2> /dev/null) ]]; then
         error "Couldn't find ${green}mkisofs${red}."
         warn "Install \"${norm}cdrtools${orange}\", or something like \"${norm}genisoimage, cdrkit, xorriso${orange}\"."
@@ -185,7 +185,7 @@ function check_mkisofs_installed () {
     fi
 }
 
-function check_nc_installed () {
+check_nc_installed () {
 
     # e.g. Debian doesn't match either of the below regexes. 
     # it should use BSD style -q 0 but only "problem" if not is
@@ -221,7 +221,7 @@ function check_nc_installed () {
     fi
 }
 
-function check_qemu_installed () {
+check_qemu_installed () {
     if [[ -n $(/usr/libexec/qemu-kvm --version 2> /dev/null) ]]; then
         QEMU=/usr/libexec/qemu-kvm
         success "Found qemu in /usr/libexec."
@@ -235,7 +235,7 @@ function check_qemu_installed () {
     fi
 }
 
-function check_qemu_img () {
+check_qemu_img () {
     if [[ -n $(qemu-img --version 2> /dev/null) ]]; then
         success "Found qemu-img."
     else
@@ -244,7 +244,7 @@ function check_qemu_img () {
     fi
 }
 
-function run_prog_checks () {
+run_prog_checks () {
     info "Checking for program dependencies..."
     check_dl_installed
     if [[ $MACOS -eq 0 ]]; then
@@ -264,7 +264,7 @@ function run_prog_checks () {
     check_accel
 }
 
-function check_create_install_dir () {
+check_create_install_dir () {
     info "Creating install directory ${blue}${INSTALL_DIR}${norm}"
     if [[ -d "${INSTALL_DIR}" ]]; then
         error "Install directory ${norm}\"${blue}${INSTALL_DIR}${norm}\"${red} exists, quitting."
@@ -279,7 +279,7 @@ function check_create_install_dir () {
     fi
 }
 
-function get_media () {
+get_media () {
 
     LINKS=(
         "https://mirror.arizona.edu/archlinux/iso/latest/"
@@ -327,7 +327,7 @@ function get_media () {
 
 }
 
-function check_media () {
+check_media () {
     if [[ ! -f "${INSTALL_MEDIA}" ]]; then
         error "Install media ${norm}$INSTALL_MEDIA${red} not found."
         warn "Would you like this script to try to download the latest ISO for you?"
@@ -344,9 +344,9 @@ function check_media () {
     fi
 }
 
-function ovmf () {
+ovmf () {
 
-    function dl () {
+    dl () {
         info "OVMF_${1} not found, fetching..."
         if ${DL_CMD} "${INSTALL_DIR}/OVMF_${1}.fd" "https://github.com/clearlinux/common/raw/master/OVMF_${1}.fd"; then
             success "OVMF_${1} downloaded."
@@ -413,7 +413,7 @@ export TERM=xterm-256color
 
 STEP=1
 
-function info () {
+info () {
     echo -e "$(tput setaf 11)Step ${STEP}$(tput setaf 230) => $(tput setaf 11)${1}$(tput sgr0)"
     ((STEP++))
 }
@@ -504,7 +504,7 @@ mount /dev/vg/root /mnt
 mkdir /mnt/efi && mount ${DISK}1 /mnt/efi
 
 info "Wait for pacman-init service to start. This can take a long time."
-function check_pacman () {
+check_pacman () {
     if ! systemctl show --no-pager pacman-init.service | grep -qx ActiveState=active; then
         echo -n "."
         sleep 1
@@ -543,7 +543,7 @@ export TERM=xterm-256color
 
 STEP=1
 
-function info () {
+info () {
     echo -e "$(tput setaf 48)Step ${STEP}$(tput setaf 230) => $(tput setaf 48)${1}$(tput sgr0)"
     ((STEP++))
 }
@@ -751,7 +751,7 @@ if [[ $ACCEL == ",accel=kvm" ]]; then
     CPU="-cpu host"
 fi
 
-function run_machine () {
+run_machine () {
     qemu-system-x86_64 \
         -name arch \
         -nodefaults \
@@ -775,7 +775,7 @@ function run_machine () {
 run_machine
 RUNFILE
 
-function edit_runfile () {
+edit_runfile () {
     if [[ -n $VNC ]]; then
         # no "sed -i" on macos...
         sed 's/VNC=""/VNC="-vnc localhost:1"/' "${INSTALL_DIR}/run.sh" > "${INSTALL_DIR}/tmp_run.sh" && mv -f "${INSTALL_DIR}/tmp_run.sh" "${INSTALL_DIR}/run.sh"
@@ -815,7 +815,7 @@ ovmf
 # setup for the qemu machine
 
 # -cpu=host requires KVM
-function run_machine () {
+run_machine () {
 
     CPU=""
 
@@ -857,9 +857,9 @@ info "Starting machine"
 # https://github.com/mvidner/sendkeys
 # and 
 # https://github.com/myspaghetti/macos-virtualbox
-function send_keys () {
+send_keys () {
 
-    function sub_fn () {
+    sub_fn () {
 
         declare -gA KEYS
 
@@ -944,7 +944,7 @@ fi
 
 info "Waiting for install to complete."
 
-function wait_for_end () {
+wait_for_end () {
     if echo "info block" | nc ${NC_CMD_ARG} localhost 3456 > /dev/null 2>&1; then
         sleep 1
         wait_for_end
