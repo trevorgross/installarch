@@ -520,7 +520,7 @@ info "Update archlinux-keyring"
 pacman --noconfirm -Sy archlinux-keyring
 
 info "pacstrap"
-if ! pacstrap /mnt base linux; then
+if ! pacstrap -K /mnt base linux; then
     echo "$(tput setaf 196)Something is wrong. Couldn't install base system."
     echo "Bailing out, try either running the script again"
     echo "or manually completing install.$(tput sgr0)"
