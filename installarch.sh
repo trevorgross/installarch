@@ -752,24 +752,33 @@ if [[ $ACCEL == ",accel=kvm" ]]; then
 fi
 
 run_machine () {
-    qemu-system-x86_64 \
-        -name arch \
-        -nodefaults \
-        -monitor ${MONITOR} \
-        -machine type=q35${ACCEL} \
-        ${CPU} \
-        -m 1024 \
-        -device virtio-rng-pci \
-        -device virtio-gpu \
-        -device qemu-xhci,id=xhci \
-        -device usb-tablet \
-        -drive id=disk0,if=virtio,format=qcow2,file=arch.qcow2,media=disk \
-        -drive media=cdrom \
-        -netdev user,id=net0 \
-        -device virtio-net-pci,id=nic0,netdev=net0 \
-        ${VNC} \
-        -drive if=pflash,format=raw,readonly=on,file=OVMF_CODE.fd \
+    args=(
+        -name arch 
+        -nodefaults 
+        -monitor ${MONITOR} 
+        -machine type=q35${ACCEL} 
+        -m 1024 
+        -device virtio-rng-pci 
+        -device virtio-gpu 
+        -device qemu-xhci,id=xhci 
+        -device usb-tablet 
+        -drive id=disk0,if=virtio,format=qcow2,file=arch.qcow2,media=disk 
+        -drive media=cdrom 
+        -netdev user,id=net0 
+        -device virtio-net-pci,id=nic0,netdev=net0 
+        -drive if=pflash,format=raw,readonly=on,file=OVMF_CODE.fd 
         -drive if=pflash,format=raw,file=OVMF_VARS.fd 
+    )
+
+    if [[ -n $CPU ]]; then
+        args+=($CPU)
+    fi
+
+    if [[ -n $VNC ]]; then
+        args+=($VNC)
+    fi
+
+    qemu-system-x86_64 "${args[@]}"
 }
 
 run_machine
@@ -823,28 +832,37 @@ run_machine () {
         CPU="-cpu host"
     fi
 
-    "$QEMU" \
-        -name arch-installer \
-        -nodefaults \
-        -monitor telnet:localhost:3456,server,nowait \
-        -machine type=q35${ACCEL} \
-        ${CPU} \
-        -m 1024 \
-        -device virtio-rng-pci \
-        -device virtio-gpu \
-        -device qemu-xhci,id=xhci \
-        -device usb-tablet \
-        -device virtio-serial \
-        -chardev socket,path=${QEMU_GA},server=on,wait=off,id=qemu-ga \
-        -device virtserialport,chardev=qemu-ga,name=org.qemu.guest_agent.0 \
-        -drive id=disk0,if=virtio,format=qcow2,file="${INSTALL_DIR}"/arch.qcow2,media=disk \
-        -drive file="${INSTALL_MEDIA}",media=cdrom \
-        -drive file="${INSTALL_DIR}"/ia.iso,media=cdrom \
-        -netdev user,id=net0 \
-        -device virtio-net-pci,id=nic0,netdev=net0 \
-        ${VNC} \
-        -drive if=pflash,format=raw,readonly=on,file="${INSTALL_DIR}"/OVMF_CODE.fd \
-        -drive if=pflash,format=raw,file="${INSTALL_DIR}"/OVMF_VARS.fd &
+    args=(
+        -name arch-installer 
+        -nodefaults 
+        -monitor telnet:localhost:3456,server,nowait 
+        -machine type=q35${ACCEL} 
+        -m 1024 
+        -device virtio-rng-pci 
+        -device virtio-gpu 
+        -device qemu-xhci,id=xhci 
+        -device usb-tablet 
+        -device virtio-serial 
+        -chardev socket,path=${QEMU_GA},server=on,wait=off,id=qemu-ga 
+        -device virtserialport,chardev=qemu-ga,name=org.qemu.guest_agent.0 
+        -drive id=disk0,if=virtio,format=qcow2,file="${INSTALL_DIR}"/arch.qcow2,media=disk 
+        -drive file="${INSTALL_MEDIA}",media=cdrom 
+        -drive file="${INSTALL_DIR}"/ia.iso,media=cdrom 
+        -netdev user,id=net0 
+        -device virtio-net-pci,id=nic0,netdev=net0 
+        -drive if=pflash,format=raw,readonly=on,file="${INSTALL_DIR}"/OVMF_CODE.fd 
+        -drive if=pflash,format=raw,file="${INSTALL_DIR}"/OVMF_VARS.fd 
+    )
+
+    if [[ -n $CPU ]]; then
+        args+=($CPU)
+    fi
+
+    if [[ -n $VNC ]]; then
+        args+=($VNC)
+    fi
+
+    "$QEMU" "${args[@]}" &
 
     echo $! > "$MACHINE_PID"
 
