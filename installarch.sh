@@ -677,7 +677,8 @@ ENDZSH
 
 chown -R "${USERNAME}":"${USERNAME}" /home/"${USERNAME}"
 
-sed -i '/NOPASSWD/s/^#.//g' /etc/sudoers
+echo '%wheel ALL=(ALL:ALL) NOPASSWD: ALL' > /etc/sudoers.d/99-wheel-nopass
+chmod 640 /etc/sudoers.d/99-wheel-nopass
 
 info "Set root pw"
 (
