@@ -567,7 +567,7 @@ echo "${HOSTNAME}" > /etc/hostname
 info "Full-system update, can avoid problems w/Grub"
 pacman --noconfirm -Syu
 
-PROGS="efibootmgr ethtool gdisk grub htop inetutils linux-headers lvm2 nfs-utils nmap openssh sudo tcpdump usbutils vim wget zsh"
+PROGS="efibootmgr ethtool gdisk grub htop inetutils linux-headers lvm2 nfs-utils nmap openssh sudo tcpdump tmux usbutils vim wget zsh"
 info "Install some programs: ${PROGS}"
 pacman --noconfirm -S ${PROGS}
 
